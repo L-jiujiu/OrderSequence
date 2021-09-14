@@ -1,5 +1,7 @@
 # OrderSequence
 # 0914upload
+# 项目文档（语雀）：https://www.yuque.com/u22030335/kb/bdizwy
+
 """
 todos：
 1、把sku_list, section_list， 变成和order_list相同的数组形式
