@@ -8,7 +8,7 @@ import operator
 from Class import Sku,Section,Order,Cost_list
 from order_list import *
 from section_list import *
-
+#添加一行注释
 
 def Func_display_section_sku_list_all():
     print("所有section订单sku信息：")
