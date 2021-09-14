@@ -6,7 +6,7 @@
 """
 
 import operator
-from Class import Sku,Section,Order,Cost_list
+from Class import Sku,Section,Order,CostList
 from order_list import *
 from section_list import *
 #添加一行注释
@@ -64,7 +64,7 @@ def Func_Cost_sequence(order):
         order[i].make_section_list()    # 根据SKU制作分区访问序列
         order[i].make_section_list_simple() #制作经停section的list
         order[i].cal_time_cost()        # 计算所有order的等待成本
-        cost.append(Cost_list(order[i].name,0,order[i].order_time_cost,i))
+        cost.append(CostList(order[i].name, 0, order[i].order_time_cost, i))
     #对成本以cost为键进行排序
     sortkey=operator.attrgetter('cost')
     cost.sort(key=sortkey)
