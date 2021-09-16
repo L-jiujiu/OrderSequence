@@ -29,7 +29,7 @@ def Func_display_section_sku_list_all():
 
     for j in range(0, 6):
         row_sku[j+1] = section_list[j].section_sku_name_list
-        exec("print('   section_{}:%s'%section_list[{}].section_sku_name_list)".format(j, j))
+        # exec("print('   section_{}:%s'%section_list[{}].section_sku_name_list)".format(j, j))
     table.add_row(row_sku)
     print(table)
     print('\n')
@@ -41,7 +41,7 @@ def Func_display_section_order_list_all():
 
     for j in range(0, 6):
         row_sku[j + 1] = section_list[j].section_sku_name_list
-        exec("print('   section_{}:%s'%section_list[{}].section_order_list)".format(j, j))
+        # exec("print('   section_{}:%s'%section_list[{}].section_order_list)".format(j, j))
     table.add_row(row_sku)
     print(table)
     print('\n')
@@ -93,12 +93,12 @@ def Func_ReadCsv(i,num_col,type):
     if (type == 'sku'):
         for f in range(len(sku_location_num_list)):
             sku_location_list.append(section_list[sku_location_num_list[f]])
-            print("sku_%d" % i, "所在的分区为：%s" % sku_location_list[f].name)
+            # print("sku_%d" % i, "所在的分区为：%s" % sku_location_list[f].name)
 
     elif (type == 'order'):
         for f in range(len(sku_location_num_list)):
             sku_location_list.append(sku_list[sku_location_num_list[f]])
-            print("order_%d" % i, "包含的sku为：%s" % sku_location_list[f].name)
+            # print("order_%d" % i, "包含的sku为：%s" % sku_location_list[f].name)
 
     return sku_location_list
 
@@ -141,9 +141,9 @@ def Func_order_notstart(order_notstart,order_ing):
     section_now = order_now.order_section_list[0]  # section_now是将要进行派发的section
     sku_now = order_now.order_sku_list[0]  # sku_now是将要进行派发的sku
 
-    print("【当前派发的订单为：%s" % order_now.name,",num=%d," % order_now.num, "sku为：%s" % sku_now.name,",num=%d" % sku_now.num, ",其cost=%.1f】" % cost[0].cost,",分区(第一站)为：%s" % section_now.name)
-    Func_display_order_section_list(order_now)
 
+    print("当前派发的订单为：%s" % order_now.name,",sku为：%s" % sku_now.name,",其cost=%.1f" % cost[0].cost,",第一站为：%s" % section_now.name)
+    Func_display_order_section_list(order_now)
 
     # 1.2改变order的当前分区current_section
     order_now.current_section.append(section_now.name)
@@ -188,8 +188,7 @@ def Func_order_notstart(order_notstart,order_ing):
             break
     # 在section的等待队列中只加order名称
     exec("section_list[{}].section_order_list.append(order_now)".format(order_now.order_section_list[0].num))
-    print('、、、、、添加好所有sku的order的信息')
-    Func_display_section_sku_list_all()
+    # Func_display_section_sku_list_all()
 
     # 1.5显示每个分区的订单\sku排序
     print('【新order派发后】')
@@ -198,8 +197,6 @@ def Func_order_notstart(order_notstart,order_ing):
     order_ing.append(order_now)
     order_notstart.pop(cost[0].orderfororder)
     cost.pop(0)
-
-
 
 
 #######################################################################################################################
@@ -228,6 +225,11 @@ if __name__ == "__main__":
     path_sku_section_map = '/Users/l_jiujiu/PycharmProjects/0820order_sequence/SkuSectionMap_0915.csv' #SkuSectionMap.csv
     data = np.genfromtxt(path_sku_section_map, delimiter=",")  # 打开Excel文件
 
+    table_SkuSection = PrettyTable()
+    fp = open('/Users/l_jiujiu/PycharmProjects/0820order_sequence/SkuSectionMap_0915.csv', "r")
+    table_SkuSection = from_csv(fp)
+    print(table_SkuSection)
+    fp.close()
 
     #获得行数，即有多少个sku
     num_sku = sum(1 for line in open(path_sku_section_map))-1
@@ -259,9 +261,14 @@ if __name__ == "__main__":
     order_finish=[]     #已经流转结束的order
     order_ing=[]        #正在流转过程中的order
 
-
-    path_order_sku_map = '/Users/l_jiujiu/PycharmProjects/0820order_sequence/OrderSkuMap_0915.csv' #SkuSectionMap.csv
+    path_order_sku_map = '/Users/l_jiujiu/PycharmProjects/0820order_sequence/OrderSkuMap_0915.csv'#SkuSectionMap.csv
     data = np.genfromtxt(path_order_sku_map, delimiter=",")  # 打开Excel文件
+
+    table_OrderSku = PrettyTable()
+    fp = open('/Users/l_jiujiu/PycharmProjects/0820order_sequence/OrderSkuMap_0915.csv', "r")
+    table_OrderSku = from_csv(fp)
+    print(table_OrderSku)
+    fp.close()
 
     #获得行数，即有多少个订单
     num_order = sum(1 for line in open(path_order_sku_map))-1
@@ -298,30 +305,34 @@ if __name__ == "__main__":
             print('*********order派发结束*********\n')
 
         Func_display_section_sku_list_all()
-
         print('#########order移动##########')
         order_move = []
+
+        table_task=PrettyTable(['section', '0', '1', '2', '3', '4', '5'])
+        row_task=['task', '', '', '', '', '', '']
+
         for i in range(0,6):
             section_now=section_list[i]
             if (len(section_now.section_sku_list) == 0):
-                print('【【【【%s】】】】无任务' % section_now.name)
+                # print('【【【【%s】】】】无任务' % section_now.name)
+                row_task[i+1]=0
             else:
+                # print("【【【【%s】】】】有任务 *"%section_now.name)
+                row_task[i+1]=1
 
-                print("【【【【%s】】】】有任务 *"%section_now.name)
-
-                print('【order移动前】')
+                # print('【order移动前】')
                 # Func_display_section_sku_list_all()
                 # Func_display_section_sku_list(section_now)
 
                 order_now=section_now.section_sku_list[0]
                 sku_now=section_now.section_sku_list[0].order_sku_list[0]
-                print('要完成的order为：%s'%order_now.name,',sku为%s'%sku_now.name)
+                print('%s'%section_now.name,'要完成的order为：%s'%order_now.name,',sku为%s'%sku_now.name)
                 # Func_display_order_section_list(order_now)
                 # Func_display_section_sku_list(section_now)
 
                 #如果order_section_list只剩下一个，则调整order至order finish
                 if (len(order_now.order_section_list) == 1):
-                    print("$$$%s进入最后一个周期"%order_now.name)
+                    # print("$$$%s进入最后一个周期"%order_now.name)
                     #1。1更新订单时间信息
                     order_now.current_section.append(section_now.name)
                     order_now.time['section_processing_time_list'] = 1
@@ -371,7 +382,7 @@ if __name__ == "__main__":
 
                 # 如果order_section_list还剩下多个，下一个section与当前不同，则将订单信息加到下一个section中
                 elif ((order_now.order_section_list[1] != order_now.order_section_list[0])):
-                    print("$$$%s在当前section只剩1个sku，将在下一时间转移到下一个section"%order_now.name)
+                    # print("$$$%s在当前section只剩1个sku，将在下一时间转移到下一个section"%order_now.name)
 
                     # 1.1更新order的当前分区current_section
                     order_now.current_section.append(section_now.name)
@@ -417,16 +428,20 @@ if __name__ == "__main__":
                 # print("\n【删除结束后】当前操作分区%s的:section_order_list" % section_now.name)
                 # Func_display_section_sku_list(section_now)
 
+        table_task.add_row(row_task)
+        print(table_task)
+        print('\n')
+
         #section遍历结束后进行order移动
         if (len(order_move) != 0):
-            print('order move not null')
+            # print('order move not null')
             for i in range(len(order_move)):
                 # 1.6在下一个分区新增订单sku
                 # 1.6在分区等待队列中增加派发订单的信息(如order_1在section_1有3个sku要做，那就加3个order_1)
                 # sku队列加多个order
                 # 在section的等待队列中只加order名称
                 # exec("section_list[{}].section_order_list.append(order_move[i])".format(order_move[i].order_section_list[0].num))
-                print('.............................%d'%order_move[i].order_section_list[0].num)
+                # print('.............................%d'%order_move[i].order_section_list[0].num)
                 exec("section_list[{}].section_order_list.append(order_move[i])".format(order_move[i].order_section_list[0].num))
 
                 for k in range(len(order_move[i].order_sku_list)):
@@ -447,4 +462,7 @@ if __name__ == "__main__":
         Func_display_order()
 
         if((len(order_ing)+len(order_notstart))==0):
+            T_last=t
             break
+
+    print('完成全部订单共计用时：%d'%T_last)
