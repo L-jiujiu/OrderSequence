@@ -7,21 +7,43 @@
 """
 
 import operator
-from Class import Sku,Section,Order,CostList
-from order_list import *
-from section_list import *
-#添加一行注释
+import numpy as np
+import sys
 
+from prettytable import PrettyTable
+from prettytable import from_csv
+
+from Class import Sku,Section,Order,CostList
+
+
+# def Func_display_section_sku_list_all():
+#     print("所有section订单sku信息：")
+#     for j in range(0, 6):
+#         exec("print('   section_{}:%s'%section_list[{}].section_sku_name_list)".format(j, j))
+#     print('\n')
+#
 def Func_display_section_sku_list_all():
     print("所有section订单sku信息：")
-    for j in range(1, 7):
-        exec("print('   section_{}:%s'%section_{}.section_sku_name_list)".format(j, j))
+    table = PrettyTable(['section', '0', '1', '2', '3', '4', '5'])
+    row_sku = ['sku', '', '', '', '', '', '']
+
+    for j in range(0, 6):
+        row_sku[j+1] = section_list[j].section_sku_name_list
+        exec("print('   section_{}:%s'%section_list[{}].section_sku_name_list)".format(j, j))
+    table.add_row(row_sku)
+    print(table)
     print('\n')
 
 def Func_display_section_order_list_all():
     print("所有section订单信息：")
-    for j in range(1, 7):
-        exec("print('section_{}:%s'%section_{}.section_order_list)".format(j, j))
+    table = PrettyTable(['section', '0', '1', '2', '3', '4', '5'])
+    row_sku = ['sku', '', '', '', '', '', '']
+
+    for j in range(0, 6):
+        row_sku[j + 1] = section_list[j].section_sku_name_list
+        exec("print('   section_{}:%s'%section_list[{}].section_order_list)".format(j, j))
+    table.add_row(row_sku)
+    print(table)
     print('\n')
 
 def Func_display_section_sku_list(section_now):
@@ -55,17 +77,48 @@ def Func_display_order():
     print('\n')
 
 
+# 将csv中的数据按行读取为1的值并记录，如读取sku所在section信息，读取order中所含sku信息
+def Func_ReadCsv(i,num_col,type):
+    sku_location_num_list = []  # sku的全部所在分区（数字）
+    sku_location_list = []  # sku的全部所在分区（实例）
+    temp = []
 
+    # 读取所有数据，统计为1的列目标是在该分区
+    for z in range(0, num_col):
+        temp.append(data[i + 1, z + 1])
+        if ((temp[z]) != 0):
+            sku_location_num_list.append(z)
+    # 将分区信息记录在sku对应分区的列表中
+
+    if (type == 'sku'):
+        for f in range(len(sku_location_num_list)):
+            sku_location_list.append(section_list[sku_location_num_list[f]])
+            print("sku_%d" % i, "所在的分区为：%s" % sku_location_list[f].name)
+
+    elif (type == 'order'):
+        for f in range(len(sku_location_num_list)):
+            sku_location_list.append(sku_list[sku_location_num_list[f]])
+            print("order_%d" % i, "包含的sku为：%s" % sku_location_list[f].name)
+
+    return sku_location_list
 
 # 成本排序函数：
 def Func_Cost_sequence(order):
     # 成本排序队列构建
     cost = []
     for i in range(len(order)):
-        order[i].make_section_list()    # 根据SKU制作分区访问序列
+        order[i].make_section_list()        # 根据SKU制作分区访问序列
         order[i].make_section_list_simple() #制作经停section的list
-        order[i].cal_time_cost()        # 计算所有order的等待成本
-        cost.append(CostList(order[i].name, 0, order[i].order_time_cost, i))
+        order[i].cal_time_cost()            # 计算所有order的等待成本
+
+        cost_input = {
+            'name':order[i].name ,  # 分区名称
+            'order': 0,  # 分区序号
+            'cost': order[i].order_time_cost,  # 等待订单的数量，初始为0
+            'orderfororder': i,  # 处理订单的列表，不重复
+        }
+        cost.append(CostList(cost_input))
+
     #对成本以cost为键进行排序
     sortkey=operator.attrgetter('cost')
     cost.sort(key=sortkey)
@@ -88,7 +141,7 @@ def Func_order_notstart(order_notstart,order_ing):
     section_now = order_now.order_section_list[0]  # section_now是将要进行派发的section
     sku_now = order_now.order_sku_list[0]  # sku_now是将要进行派发的sku
 
-    print("【当前派发的订单为：%s" % order_now.name, "sku为：%s" % sku_now.name, ",其cost=%.1f】" % cost[0].cost,",分区(第一站)为：%s" % section_now.name)
+    print("【当前派发的订单为：%s" % order_now.name,",num=%d," % order_now.num, "sku为：%s" % sku_now.name,",num=%d" % sku_now.num, ",其cost=%.1f】" % cost[0].cost,",分区(第一站)为：%s" % section_now.name)
     Func_display_order_section_list(order_now)
 
 
@@ -113,11 +166,20 @@ def Func_order_notstart(order_notstart,order_ing):
 
     # 1.4在分区等待队列中增加派发订单的信息(如order_1在section_1有3个sku要做，那就加3个order_1)
     # sku队列加多个order
+    # print('添加多个order')
     for k in range(len(order_now.order_sku_list)):
-        exec("{}.section_sku_list.append(order_now)".format(order_now.order_section_list[0].name))
-        exec("{}.section_sku_name_list.append(order_now.name)".format(order_now.order_section_list[0].name))
+        exec("section_list[{}].section_sku_list.append(order_now)".format(order_now.order_section_list[0].num))
+        exec("section_list[{}].section_sku_name_list.append(order_now.name)".format(order_now.order_section_list[0].num))
+
+        # exec("{}.section_sku_list.append(order_now)".format(order_now.order_section_list[0]))
+        # exec("{}.section_sku_name_list.append(order_now.name)".format(order_now.order_section_list[0]))
+
+        # if (order_now.order_sku_list[k + 1].sku_location_list == order_now.order_sku_list[k].sku_location_list):
+        #     continue
+        # else:
+        #     break
         try:
-            if (order_now.order_sku_list[k + 1].sku_location == order_now.order_sku_list[k].sku_location):
+            if (order_now.order_sku_list[k + 1].sku_location_list == order_now.order_sku_list[k].sku_location_list):
                 continue
             else:
                 break
@@ -125,7 +187,9 @@ def Func_order_notstart(order_notstart,order_ing):
         except:
             break
     # 在section的等待队列中只加order名称
-    exec("{}.section_order_list.append(order_now)".format(order_now.order_section_list[0].name))
+    exec("section_list[{}].section_order_list.append(order_now)".format(order_now.order_section_list[0].num))
+    print('、、、、、添加好所有sku的order的信息')
+    Func_display_section_sku_list_all()
 
     # 1.5显示每个分区的订单\sku排序
     print('【新order派发后】')
@@ -138,106 +202,96 @@ def Func_order_notstart(order_notstart,order_ing):
 
 
 
-
 #######################################################################################################################
 if __name__ == "__main__":
 #1\初始化6个分区信息：分区名称、正在等待的订单数量、处理订单列表
     num_section=6
     section_list=[]
-    for i in range(1,(num_section+1)):
-        section_input = {'name': 'section_{}'.format(i),
-                         'section_order_num': 0,
-                         'section_order_list': [],
-                         'section_sku_list': [],
-                         'section_sku_name_list': []
-                        }
+    for i in range(0,(num_section)):
+        section_input = {
+            'name': 'section_{}'.format(i),    #分区名称
+            'num':i,                           #分区序号
+            'section_order_num': 0,            #等待订单的数量，初始为0
+            'section_order_list': [],          #处理订单的列表，不重复
+            'section_sku_list': [],            #处理sku的信息，可以有多个order1
+            'section_sku_name_list': []        #处理sku信息的名称（不是实例）
+            }
 
         section_list.append(Section(section_input))
 
-    section_config={'name':'',
-                    'section_order_num':'',
-                    'section_order_list':[],
-                    'section_sku_list': []
-                    }
-    section_1=Section(section_1_config)
-    section_2=Section(section_2_config)
-    section_3=Section(section_3_config)
-    section_4=Section(section_4_config)
-    section_5=Section(section_5_config)
-    section_6=Section(section_6_config)
-
-
-# section_1.section_order_list.extend(['1','3','6'])
-    # print(section_1.__dict__)  # 查询每个实例的属性
 
 #2\初始化sku所在的分区：sku名称，sku处理所需时间、sku所在分区
     #同一分区中的不同sku
-    num_sku=6
     sku_list=[]
-    sku_selection_map=[] #read data from SkuSectionMap
-    sku_time=1
-    for i in range(1,(num_sku+1)):
-        sku_input={'name':'sku_{}'.format(i),
-                   'sku_time':sku_time,
-                   'sku_location':'' #后续考虑在表中读取sku的section信息
-                   }
-        sku_list.append(Sku(sku_input))
-    sku_1=Sku(sku_1_config)
-    sku_11=Sku(sku_11_config)
-    sku_111=Sku(sku_111_config)
-    #不同分区的sku
-    sku_2=Sku(sku_2_config)
-    sku_3=Sku(sku_3_config)
-    sku_4=Sku(sku_4_config)
-    sku_5=Sku(sku_5_config)
-    sku_6=Sku(sku_6_config)
+    sku_time = 1  # sku处理所需要的时间
 
-    # print("sku_1.location:%s"%sku_1.sku_location.name)
-    # print("sku_1.time:%d"%sku_1.sku_time)
-    # print(sku_111.__dict__)
+    path_sku_section_map = '/Users/l_jiujiu/PycharmProjects/0820order_sequence/SkuSectionMap_0915.csv' #SkuSectionMap.csv
+    data = np.genfromtxt(path_sku_section_map, delimiter=",")  # 打开Excel文件
+
+
+    #获得行数，即有多少个sku
+    num_sku = sum(1 for line in open(path_sku_section_map))-1
+    print('所有sku数量为：%d '%num_sku)
+    # x = data[1,1:7]  # 第2行，2-7列数据
+    # y = data[2,1:7]  # 第3行，2-7列数据
+
+    #从表中读取sku所在的分区信息
+    for i in range(0,(num_sku)):
+        sku_location_list=Func_ReadCsv(i,num_section,type='sku') #统计每行中不为0的列数
+        sku_input={
+            'name':'sku_{}'.format(i),           #sku名称
+            'num': i,                            # 分区序号
+            'sku_time':sku_time,                 #sku处理所需时间（默认为1）
+            'sku_location_list': sku_location_list    #后续考虑在表中读取sku的section信息
+            }
+        sku_list.append(Sku(sku_input))
 
 #3\初始化订单：订单等候cost、订单中的sku信息、订单的分区经停顺序，计算总等待cost
     #订单构建
-
-    time={'enter_section': '',  # 进入分区时间
-          'leave_section': '',  # 离开分区时间
-          'start_processing': '',  # 开始加工时间
-          'section_processing_time_list': [],  # 每个订单在所需经过的分区所需要分拣的时间
-          'waiting_time': '',  # 在某个分区所需等待的时间
+    time={'enter_section': '',                  # 进入分区时间
+          'leave_section': '',                  # 离开分区时间
+          'start_processing': '',               # 开始加工时间
+          'section_processing_time_list': [],   # 每个订单在所需经过的分区所需要分拣的时间
+          'waiting_time': '',                   # 在某个分区所需等待的时间
           }
-
-    order_config={'name':'',
-                  'order_time_cost':'',
-                  'order_sku_list':'',
-                  'order_section_list':'',
-                  'current_section':'',
-                  'time':''
-                  }
 
     order_notstart=[]   #未发出的order
     order_finish=[]     #已经流转结束的order
     order_ing=[]        #正在流转过程中的order
 
-    #记录订单信息到未发出的order中
-    order_notstart.extend([Order(order_1_con),
-                           Order(order_2_con),
-                           Order(order_3_con),
-                           Order(order_4_con),
-                           Order(order_5_con),
-                           Order(order_6_con),
-                           Order(order_7_con)
-                           ])
+
+    path_order_sku_map = '/Users/l_jiujiu/PycharmProjects/0820order_sequence/OrderSkuMap_0915.csv' #SkuSectionMap.csv
+    data = np.genfromtxt(path_order_sku_map, delimiter=",")  # 打开Excel文件
+
+    #获得行数，即有多少个订单
+    num_order = sum(1 for line in open(path_order_sku_map))-1
+    print('所有order数量为：%d '%num_order)
+
+    #从表中读取sku所在的分区信息
+    for i in range(0,(num_order)):
+        order_sku_list=Func_ReadCsv(i,num_sku,type='order') #统计每行中不为0的列数
+        order_input = {'name': 'order_{}'.format(i),        # 订单名称
+                       'num': i,                            # 分区序号
+                       'order_time_cost': '0',              # 订单等候时间cost
+                        'order_sku_list': order_sku_list,   # 订单中的sku信息
+                        'order_section_list': [],           # 剩余分区集合
+                        'current_section': [],              # 当前所在分区
+                        'time': time,
+                        'order_section_list_simple': []     # 简单的分区经过信息
+                        }
+        order_notstart.append(Order(order_input))
 
 
+# 仿真Simulation
     cost=[]
-
-
     #T为需要计算的时间
-    T=10
+    T=100
     for t in range(1,T):
-
         print("\n")
         print("--------------------------\n     当前时刻为%d\n--------------------------" % t)
+
+        # Func_order_notstart(order_notstart=order_notstart, order_ing=order_ing)
+        #
         try:
             Func_order_notstart(order_notstart=order_notstart, order_ing=order_ing)
         except:
@@ -245,16 +299,15 @@ if __name__ == "__main__":
 
         Func_display_section_sku_list_all()
 
-
         print('#########order移动##########')
         order_move = []
-        for i in range(1,7):
-            exec("section_now=section_{}".format(i))
+        for i in range(0,6):
+            section_now=section_list[i]
             if (len(section_now.section_sku_list) == 0):
                 print('【【【【%s】】】】无任务' % section_now.name)
             else:
 
-                print("【【【【%s】】】】有任务*"%section_now.name)
+                print("【【【【%s】】】】有任务 *"%section_now.name)
 
                 print('【order移动前】')
                 # Func_display_section_sku_list_all()
@@ -275,11 +328,11 @@ if __name__ == "__main__":
                     order_now.time['waiting_time'] = len(section_now.section_sku_list) - 1
 
                     #1.2 在分区sku等待队列中删除派发sku的信息
-                    exec("{}.section_sku_list.pop(0)".format(order_now.order_section_list[0].name))
-                    exec("{}.section_sku_name_list.pop(0)".format(order_now.order_section_list[0].name))
+                    exec("section_list[{}].section_sku_list.pop(0)".format(order_now.order_section_list[0].num))
+                    exec("section_list[{}].section_sku_name_list.pop(0)".format(order_now.order_section_list[0].num))
                     #1.3 在分区订单等待队列删除派发的一个订单名称
                     Func_display_section_order_list(section_now)
-                    exec("{}.section_order_list.pop(0)".format(order_now.order_section_list[0].name))
+                    exec("section_list[{}].section_order_list.pop(0)".format(order_now.order_section_list[0].num))
 
 
                     #1.4 删除order的section和sku记录
@@ -308,8 +361,8 @@ if __name__ == "__main__":
                     # print("【%s" % order_now.name, "移动】waiting time=%s" % order_now.time['waiting_time'])
 
                     # 1.2 在分区等待队列中删除派发订单的信息
-                    exec("{}.section_sku_list.pop(0)".format(order_now.order_section_list[0].name))
-                    exec("{}.section_sku_name_list.pop(0)".format(order_now.order_section_list[0].name))
+                    exec("section_list[{}].section_sku_list.pop(0)".format(order_now.order_section_list[0].num))
+                    exec("section_list[{}].section_sku_name_list.pop(0)".format(order_now.order_section_list[0].num))
 
 
                     # 1.4 删除order的section和sku记录
@@ -337,12 +390,12 @@ if __name__ == "__main__":
 
 
                     # 1.3 在分区等待队列中删除派发订单的信息
-                    exec("{}.section_sku_list.pop(0)".format(order_now.order_section_list[0].name))
-                    exec("{}.section_sku_name_list.pop(0)".format(order_now.order_section_list[0].name))
+                    exec("section_list[{}].section_sku_list.pop(0)".format(order_now.order_section_list[0].num))
+                    exec("section_list[{}].section_sku_name_list.pop(0)".format(order_now.order_section_list[0].num))
                     # Func_display_section_order_list(section_now)
 
                     # 1.4 在分区订单等待队列删除派发的一个订单名称
-                    exec("{}.section_order_list.pop(0)".format(order_now.order_section_list[0].name))
+                    exec("section_list[{}].section_order_list.pop(0)".format(order_now.order_section_list[0].num))
 
                     # 1.5 删除order的section和sku记录
                     order_now.order_section_list.pop(0)
@@ -350,10 +403,11 @@ if __name__ == "__main__":
 
                     #记录待移动的订单，在遍历所有section后进行移动，防止同一时间订单在多个section完成
                     order_move.append(order_now)
+                    # print(order_move[0])
 
                 # 1.4显示每个分区的订单\sku排序、订单信息
-                print('【order完成后】')
-                Func_display_section_sku_list_all()
+                # print('【order完成后】')
+                # Func_display_section_sku_list_all()
                 # print('****************')
                 # Func_display_order()
 
@@ -365,26 +419,32 @@ if __name__ == "__main__":
 
         #section遍历结束后进行order移动
         if (len(order_move) != 0):
-            # print('order move not null')
+            print('order move not null')
             for i in range(len(order_move)):
                 # 1.6在下一个分区新增订单sku
                 # 1.6在分区等待队列中增加派发订单的信息(如order_1在section_1有3个sku要做，那就加3个order_1)
                 # sku队列加多个order
                 # 在section的等待队列中只加order名称
-                exec("{}.section_order_list.append(order_move[i])".format(order_move[i].order_section_list[0].name))
+                # exec("section_list[{}].section_order_list.append(order_move[i])".format(order_move[i].order_section_list[0].num))
+                print('.............................%d'%order_move[i].order_section_list[0].num)
+                exec("section_list[{}].section_order_list.append(order_move[i])".format(order_move[i].order_section_list[0].num))
 
                 for k in range(len(order_move[i].order_sku_list)):
-                    exec("{}.section_sku_list.append(order_move[i])".format(order_move[i].order_section_list[0].name))
-                    exec("{}.section_sku_name_list.append(order_move[i].name)".format(
-                        order_move[i].order_section_list[0].name))
+                    exec("section_list[{}].section_sku_list.append(order_move[i])".format(order_move[i].order_section_list[0].num))
+                    exec("section_list[{}].section_sku_name_list.append(order_move[i].name)".format(order_move[i].order_section_list[0].num))
                     try:
-                        if (order_move[i].order_sku_list[k + 1].sku_location == order_move[i].order_sku_list[
-                            k].sku_location):
+                        if (order_move[i].order_sku_list[k + 1].sku_location == order_move[i].order_sku_list[k].sku_location):
                             continue
                         else:
                             break
                     except:
                         break
 
+        print('【order move完成后】')
+        Func_display_section_sku_list_all()
+
         print('\nt=%d时刻order状态：'%t)
         Func_display_order()
+
+        if((len(order_ing)+len(order_notstart))==0):
+            break
