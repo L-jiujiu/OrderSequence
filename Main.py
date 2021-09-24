@@ -6,6 +6,10 @@
 1212·1·121-1111
 """
 
+# todos:
+#     1\未测试如果move到某阶段并且此阶段为最后一段，为何不可以直接finish只能保留在ing
+    
+
 import operator
 import numpy as np
 import pandas as pd
