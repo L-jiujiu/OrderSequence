@@ -83,7 +83,7 @@ class Order:
                     waiting = 0
             except BaseException:
                 break
-        print("%s" % self.name, "的cost为：%.2f" % self.order_time_cost)
+        # print("%s" % self.name, "的cost为：%.2f" % self.order_time_cost)
     # print("\n")
 
 # 用于将排序后的cost和订单order对应
