@@ -10,11 +10,13 @@
 #     1\未测试如果move到某阶段并且此阶段为最后一段，为何不可以直接finish只能保留在ing
 
 import time as tm
-
+import random
 import operator
 import numpy as np
 import pandas as pd
 
+import numpy as np
+import matplotlib.pyplot as plt
 import sys
 
 
@@ -23,7 +25,7 @@ from prettytable import from_csv
 
 from Class import Sku, Section, Order, CostList
 
-#程序计时：记下开始时刻
+# 程序计时：记下开始时刻
 start = tm.perf_counter()
 
 # SkuSectionMap.csv
@@ -31,7 +33,30 @@ path_sku_section_map = '/Users/l_jiujiu/PycharmProjects/0820order_sequence/SkuSe
 # SkuSectionMap.csv
 path_order_sku_map = '/Users/l_jiujiu/PycharmProjects/0820order_sequence/OrderSkuMap_0922.csv'
 # T为需要仿真最多需要的时间
-T = 10000000
+T = 1000000
+
+
+def randomcolor():
+    colorArr = [
+        '1',
+        '2',
+        '3',
+        '4',
+        '5',
+        '6',
+        '7',
+        '8',
+        '9',
+        'A',
+        'B',
+        'C',
+        'D',
+        'E',
+        'F']
+    color = ""
+    for i in range(6):
+        color += colorArr[random.randint(0, 14)]
+    return "#" + color
 
 
 def Func_display_section_sku_list_all():
@@ -86,6 +111,15 @@ def Func_display_order_section_list(order_now):
     print('\n')
 
 
+def Func_display_order_sku_list(order_now):
+    print("【%s" %
+          order_now.name, "】的剩余sku集合order_section_list(%d)" %
+          len(order_now.order_section_list), end=': ')
+    for j in range(len(order_now.order_sku_list)):
+        print(order_now.order_sku_list[j].name, end=',')
+    print('\n')
+
+
 def Func_display_order():
     print('   *order_notstart(%d): ' % len(order_notstart), end='')
     for i in range(len(order_notstart)):
@@ -115,6 +149,36 @@ def Func_ReadCsv_OrderSku(i, num_col):
         sku_location_list.append(sku_list[sku_location_num_list[f]])
         # print("order_%d" % i, "包含的sku为：%s" % sku_location_list[f].name)
     return sku_location_list
+
+# [改进，按照section的顺序加入order_sku_list]将csv中的数据按行读取为1的值并记录，如读取sku所在section信息，读取order中所含sku信息
+
+
+def Func_ReadCsv_OrderSku_tool(order_sku_num_list, order_sku_list, a):
+    for f in range(len(order_sku_num_list)):
+        if(order_sku_num_list[f] is not None):
+            if (sku_list[order_sku_num_list[f]
+                         ].sku_location_list[0].name == a):
+                order_sku_list.append(sku_list[order_sku_num_list[f]])
+                order_sku_num_list[f] = None
+
+
+def Func_ReadCsv_OrderSku_improve(i, num_col):
+    order_sku_num_list = []  # sku的全部所在分区（数字）
+    order_sku_list = []  # sku的全部所在分区（实例）
+    temp = []
+
+    # 读取所有数据，统计为1的列目标是在该分区
+    for z in range(0, num_col):
+        temp.append(data[i + 1, z + 1])
+        if ((temp[z]) != 0):
+            order_sku_num_list.append(z)
+    # 将分区信息记录在sku对应分区的列表中
+
+    for i in range(0, 6):
+        exec("Func_ReadCsv_OrderSku_tool(order_sku_num_list, order_sku_list, 'section_{}')".format(i))
+
+    # print("order_%d" % i, "包含的sku为：%s" % sku_location_list[f].name)
+    return order_sku_list
 
 
 # 将csv中的数据按行读取为1的值并记录，如读取sku所在section信息，读取order中所含sku信息
@@ -190,7 +254,7 @@ def Func_order_notstart(order_notstart, order_ing):
     for i in range(len(order_now.order_sku_list)):
         print(order_now.order_sku_list[i].name)
     Func_display_order_section_list(order_now)
-
+    Func_display_order_sku_list(order_now)
     # 1.2改变order的当前分区current_section
     order_now.current_section.append(section_now.name)
 
@@ -303,6 +367,7 @@ if __name__ == "__main__":
             'sku_location_list': sku_location_list  # 后续考虑在表中读取sku的section信息
         }
         sku_list.append(Sku(sku_input))
+        # print(sku_list[i].sku_location_list[0].name)
 
 # 3\初始化订单：订单等候cost、订单中的sku信息、订单的分区经停顺序，计算总等待cost
     # 订单构建
@@ -333,7 +398,8 @@ if __name__ == "__main__":
 
     # 从表中读取sku所在的分区信息
     for i in range(0, (num_order)):
-        order_sku_list = Func_ReadCsv_OrderSku(i, num_sku)  # 统计每行中不为0的列数
+        order_sku_list = Func_ReadCsv_OrderSku_improve(
+            i, num_sku)  # 统计每行中不为0的列数
         order_input = {'name': 'order_{}'.format(i),        # 订单名称
                        'num': i,                            # 分区序号
                        'order_time_cost': '0',              # 订单等候时间cost
@@ -344,12 +410,18 @@ if __name__ == "__main__":
                        'order_section_list_simple': []     # 简单的分区经过信息
                        }
         order_notstart.append(Order(order_input))
-
+        # print(order_notstart[i].order_sku_list)
 
 # 仿真Simulation
     cost = []
     # #T为需要计算的时间
     # T=100
+
+    # 画图表示每个section的工作负荷
+    x_t = []
+    for i in range(len(section_list)):
+        exec("y_{}=[]".format(i))
+
     for t in range(1, T):
         print("\n")
         print(
@@ -400,7 +472,7 @@ if __name__ == "__main__":
                         sku_now.name,
                         ',下一个sku为%s' %
                         section_now.section_sku_list[0].order_sku_list[1].name)
-                except:
+                except BaseException:
                     print(
                         '%s' %
                         section_now.name,
@@ -571,12 +643,34 @@ if __name__ == "__main__":
         print('\nt=%d时刻order状态：' % t)
         Func_display_order()
 
+        # 统计循环次数，作为section中order作业统计的x轴
+        x_t.append(t)
+        # 统计section中的section_sku_list，记录y轴数据
+        for i in range(len(section_list)):
+            exec(
+                "y_{}.append(len(section_list[{}].section_sku_list))".format(
+                    i,
+                    i))
+        # for i in range(len(section_list)):
+        #     exec("print(y_{})".format(i))
+
+        # 统计最后循环次数
         if((len(order_ing) + len(order_notstart)) == 0):
             T_last = t
             break
 
-    print('完成全部订单共计用时：%d' % T_last)
+    print('完成全部订单共计循环次数：%d' % T_last)
 
-end=tm.perf_counter()
+# 统计程序用时
+end = tm.perf_counter()
+print("程序共计用时 : %s Seconds " % (end - start))
 
-print("程序共计用时 : %s Seconds " % (end-start))
+# 绘制图像
+fig = plt.figure()
+for i in range(len(section_list)):
+    exec("ax = fig.add_subplot(61{})".format(i + 1))
+    exec("plt.title(r'$section{}$', fontsize=10)".format(i))
+
+    # plt.title(r'$section{}$', fontsize=10)
+    exec("ax.plot(x_t, y_{}, color=randomcolor(), linewidth=2)".format(i))
+plt.show()
