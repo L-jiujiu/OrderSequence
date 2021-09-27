@@ -4,6 +4,8 @@
 日期：2021.09.27
 """
 
+
+# 507sku & 4857order
 import sys
 
 import pandas as pd
