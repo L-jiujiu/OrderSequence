@@ -36,7 +36,7 @@ cwd = os.getcwd()  # 读取当前文件夹路径
 # SkuSectionMap.csv
 path_sku_section_map = cwd + '/SkuSectionMap_0922.csv'
 # SkuSectionMap.csv
-path_order_sku_map = cwd + '/OrderSkuMap_0924.csv'
+path_order_sku_map = cwd + '/OrderSkuMap_0922improve.csv'
 # T为需要仿真最多需要的时间
 
 T = 1000000

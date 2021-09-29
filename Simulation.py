@@ -22,8 +22,8 @@ from Class import Sku, Section, Order, CostList
 from Utilities import randomcolor, Func_Cost_sequence, Func_order_notstart,\
     Func_display_section_sku_list_all, Func_display_section_order_list_all,\
     Func_display_section_sku_list, Func_display_section_order_list,\
-    Func_display_order_section_list, Func_display_order_sku_list,\
-    Func_display_order, Func_ReadCsv_OrderSku_tool, Func_ReadCsv_OrderSku_improve, Func_ReadCsv_SkuSection,\
+    Func_display_order_section_list, Func_display_order_sku_list,Func_display_order,\
+    Func_ReadCsv_OrderSku_tool, Func_ReadCsv_OrderSku_improve, Func_ReadCsv_SkuSection,Func_ReadCsv_SkuTime,\
     get_with_default
 
 
@@ -35,6 +35,7 @@ class Simulation:
         self.T = simulation_config['T']
         self.path_sku_section_map = simulation_config['path_sku_section_map']
         self.path_order_sku_map = simulation_config['path_order_sku_map']
+        self.path_sku_time_map=simulation_config['path_sku_time_map']
 
         self.num_section = simulation_config['num_section']
         self.num_sku = None
@@ -46,7 +47,7 @@ class Simulation:
 
         self.section_list = simulation_config['section_list']
         self.sku_list = simulation_config['sku_list']
-
+        self.sku_time_list=simulation_config['sku_time_list']
         # self.read_csv_data()
 
         self.sku_section_map = None
@@ -99,10 +100,16 @@ class Simulation:
         table_SkuSection = from_csv(fp)
         print(table_SkuSection)
         fp.close()
+
         # 获得列数，即有多少个sku
         sku_section_map = pd.read_csv(self.path_sku_section_map)
         self.num_sku = len(sku_section_map.columns) - 2
         print('所有sku数量为：%d ' % self.num_sku)
+
+        #添加sku的处理时长信息
+        Func_ReadCsv_SkuTime(path_sku_time_map=self.path_sku_time_map,num_sku=self.num_sku,sku_time_list=self.sku_time_list)
+        # print("skutimelist表格为：")
+        # print(self.sku_time_list)
 
         # 从表中读取sku所在的分区信息
         for i in range(0, self.num_sku):
@@ -111,10 +118,11 @@ class Simulation:
             sku_input = {
                 'name': 'sku_{}'.format(i),  # sku名称
                 'num': i,  # 分区序号
-                'sku_time': sku_time,  # sku处理所需时间（默认为1）
+                'sku_time': self.sku_time_list[i],  # sku处理所需时间（默认为1）
                 'sku_location_list': sku_location_list  # 后续考虑在表中读取sku的section信息
             }
             self.sku_list.append(Sku(sku_input))
+        # print(self.sku_list[5].sku_time)
 
     def init_order(self):
         # 3\初始化订单：订单等候cost、订单中的sku信息、订单的分区经停顺序，计算总等待cost
@@ -125,9 +133,8 @@ class Simulation:
             'section_processing_time_list': [],  # 每个订单在所需经过的分区所需要分拣的时间 【！！！】 初始化需完成
             'waiting_time': '',  # 在某个分区所需等待的时间
         }
-        data = np.genfromtxt(
-            self.path_order_sku_map,
-            delimiter=",")  # 打开Excel文件
+
+        data = np.genfromtxt(self.path_order_sku_map,delimiter=",")  # 打开Excel文件
         table_OrderSku = PrettyTable()
         fp = open(self.path_order_sku_map, "r")
         table_OrderSku = from_csv(fp)
@@ -140,16 +147,17 @@ class Simulation:
 
         # 从表中读取sku所在的分区信息
         for i in range(0, (self.num_order)):
-            self.order_sku_list = Func_ReadCsv_OrderSku_improve(
-                i, self.num_sku, data, self.sku_list)  # 统计每行中不为0的列数
+            order_sku_list = Func_ReadCsv_OrderSku_improve(
+                i, self.num_sku, data, self.sku_list,self.num_section)  # 统计每行中不为0的列数
             order_input = {'name': 'order_{}'.format(i),  # 订单名称
                            'num': i,  # 分区序号
                            'order_time_cost': '0',  # 订单等候时间cost
-                           'order_sku_list': self.order_sku_list,  # 订单中的sku信息
+                           'order_sku_list': order_sku_list,  # 订单中的sku信息
                            'order_section_list': [],  # 剩余分区集合
                            'current_section': [],  # 当前所在分区
                            'time': time,
-                           'order_section_list_simple': []  # 简单的分区经过信息
+                           'order_section_list_simple': [],  # 简单的分区经过信息
+                           'path_order_sku_map':self.path_order_sku_map
                            }
             self.order_notstart.append(Order(order_input))
             # print(self.order_notstart[i].order_sku_list)
@@ -185,10 +193,12 @@ class Simulation:
                 order_move[i])
 
             for k in range(len(order_move[i].order_sku_list)):
-                section_list[order_move[i].order_section_list[0].num].section_sku_list.append(
-                    order_move[i])
-                section_list[order_move[i].order_section_list[0].num].section_sku_name_list.append(
-                    order_move[i].name)
+                sku_add_time = int(order_move[i].order_sku_list[0].sku_time)
+                for add in range(sku_add_time):
+                    section_list[order_move[i].order_section_list[0].num].section_sku_list.append(
+                        order_move[i])
+                    section_list[order_move[i].order_section_list[0].num].section_sku_name_list.append(
+                        order_move[i].name)
                 try:
                     if (order_move[i].order_sku_list[k + 1].sku_location_list[0].name ==
                             order_move[i].order_sku_list[k].sku_location_list[0].name):
@@ -273,6 +283,7 @@ class Simulation:
                         self.section_list[order_now.order_section_list[0].num].section_sku_name_list.pop(
                             0)
 
+
                         # 1.3 在分区订单等待队列删除派发的一个订单名称
                         Func_display_section_order_list(section_now)
                         self.section_list[order_now.order_section_list[0].num].section_order_list.pop(
@@ -306,9 +317,9 @@ class Simulation:
                         # print("【%s" % order_now.name, "移动】waiting time=%s" % order_now.time['waiting_time'])
 
                         # 1.2 在分区等待队列中删除派发订单的信息
-                        section_list[order_now.order_section_list[0].num].section_sku_list.pop(
+                        self.section_list[order_now.order_section_list[0].num].section_sku_list.pop(
                             0)
-                        section_list[order_now.order_section_list[0].num].section_sku_name_list.pop(
+                        self.section_list[order_now.order_section_list[0].num].section_sku_name_list.pop(
                             0)
 
                         # 1.4 删除order的section和sku记录
@@ -424,6 +435,7 @@ if __name__ == "__main__":
     section_list = []
     # 2、初始化sku
     sku_list = []
+    sku_time_list=[]
 
     # 3、初始化订单
     order_notstart = []  # 未发出的order
@@ -431,9 +443,10 @@ if __name__ == "__main__":
     order_ing = []  # 正在流转过程中的order
 
     simulation_config = {
-        'T': 10000,  # 仿真时长
+        'T': 1000,  # 仿真时长
         'path_sku_section_map': cwd + '/SkuSectionMap_0922.csv',
         'path_order_sku_map': cwd + '/OrderSkuMap_0924.csv',
+        'path_sku_time_map': cwd + '/SkuTimeMap_0922.csv',
 
         'num_section': num_section,
 
@@ -443,6 +456,8 @@ if __name__ == "__main__":
 
         'section_list': section_list,
         'sku_list': sku_list,
+        'sku_time_list':sku_time_list
+
     }
     simulation_1 = Simulation(simulation_config)
     simulation_1.run()

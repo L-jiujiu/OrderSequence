@@ -5,6 +5,9 @@
 """
 import random
 import operator
+import numpy as np
+import pandas as pd
+
 
 from prettytable import PrettyTable
 from prettytable import from_csv
@@ -15,8 +18,6 @@ def Func_Cost_sequence(order,CostList):
     # 成本排序队列构建
     cost = []
     for i in range(len(order)):
-        order[i].make_section_list()        # 根据SKU制作分区访问序列
-        order[i].make_section_list_simple()  # 制作经停section的list
         order[i].cal_time_cost()            # 计算所有order的等待成本
 
         cost_input = {
@@ -43,11 +44,11 @@ def Func_Cost_sequence(order,CostList):
 def Func_order_notstart(t,section_list,order_notstart, order_ing):
     # if order_notstart
     # 1 order_notstart：对未发出的order进行cost计算，决策应该先派出哪单
+
     # 1.1对派发order计算cost并进行排序
     print('*********order发出*********')
     print("待派发的orders各自的cost:")
-    cost, order_now = Func_Cost_sequence(
-        order_notstart,CostList)  # order_now是选出来将要进行派发的单子
+    cost, order_now = Func_Cost_sequence(order_notstart,CostList)  # order_now是选出来将要进行派发的单子
     section_now = order_now.order_section_list[0]  # section_now是将要进行派发的section
     sku_now = order_now.order_sku_list[0]  # sku_now是将要进行派发的sku
 
@@ -61,13 +62,14 @@ def Func_order_notstart(t,section_list,order_notstart, order_ing):
         ",第一站为：%s" %
         section_now.name,
     )
-    for i in range(len(order_now.order_sku_list)):
-        print(order_now.order_sku_list[i].name)
-    Func_display_order_section_list(order_now)
-    Func_display_order_sku_list(order_now)
+    #【展示】
+    # for i in range(len(order_now.order_sku_list)):
+    #     print(order_now.order_sku_list[i].name)
+    # Func_display_order_section_list(order_now)
+    # Func_display_order_sku_list(order_now)
+
     # 1.2改变order的当前分区current_section
     order_now.current_section.append(section_now.name)
-
     # 1.3更新order时间
     # 进入section时间：对于第一次派发=当前时间
     order_now.time['enter_section'] = t  # 进入分区的时间是t，但不一定进入之后立即加工
@@ -85,34 +87,11 @@ def Func_order_notstart(t,section_list,order_notstart, order_ing):
     # print("waiting time=%s" % order_now.time['waiting_time'])
 
     # 1.4在分区等待队列中增加派发订单的信息(如order_1在section_1有3个sku要做，那就加3个order_1)
-    # sku队列加多个order
-    # print('添加多个order,当前order_sku_list为：')
-    # print(order_now.order_sku_list)
+    section_list[order_now.order_section_list[0].num].add_to_section_OrderSku_list(order_now)
 
-    # print('添加多个order,当前order中的sku_location_list为：')
-    # for k in range(len(order_now.order_sku_list)):
-    #     print(order_now.order_sku_list[k].sku_location_list[0].name)
-
-    for k in range(len(order_now.order_sku_list)):
-        section_list[order_now.order_section_list[0].num].section_sku_list.append(order_now)
-        section_list[order_now.order_section_list[0].num].section_sku_name_list.append(order_now.name)
-
-        try:
-            if (order_now.order_sku_list[k + 1].sku_location_list[0].name ==
-                    order_now.order_sku_list[k].sku_location_list[0].name):
-                continue
-            else:
-                break
-
-        except BaseException:
-            break
-    # print('当前第一个section中的sku为')
-    # print(section_list[order_now.order_section_list[0].num].section_sku_list)
-    # 在section的等待队列中只加order名称
-    section_list[order_now.order_section_list[0].num].section_order_list.append(order_now)
-    # Func_display_section_sku_list_all(section_list)
     # 1.5显示每个分区的订单\sku排序
     print('【新order派发后】')
+    section_list[order_now.order_section_list[0].num].display_section_OrderSku_list()
 
     # 1.6更新order信息,由order_notstart到正在进行order_ing,在订单排队、成本队列中踢出
     order_ing.append(order_now)
@@ -205,18 +184,32 @@ def Func_display_order(order_notstart,order_ing,order_finish):
 #     return sku_location_list
 
 # [改进，按照section的顺序加入order_sku_list]将csv中的数据按行读取为1的值并记录，如读取sku所在section信息，读取order中所含sku信息
-def Func_ReadCsv_OrderSku_tool(order_sku_num_list, order_sku_list, a,sku_list):
+def Func_ReadCsv_OrderSku_tool_2(order_sku_num_list,order_sku_number_list, order_sku_list,order_section_list, a,sku_list):
     for f in range(len(order_sku_num_list)):
         if (order_sku_num_list[f] is not None):
-            if (sku_list[order_sku_num_list[f]
-            ].sku_location_list[0].name == a):
-                order_sku_list.append(sku_list[order_sku_num_list[f]])
+            if (sku_list[order_sku_num_list[f]].sku_location_list[0].name == a):
+                sku_add_time = int(sku_list[order_sku_num_list[f]].sku_time)
+                for add in range(sku_add_time):
+                    order_sku_list.append(sku_list[order_sku_num_list[f]])
+                    order_section_list.append(sku_list[order_sku_num_list[f]].sku_location_list[0])
                 order_sku_num_list[f] = None
 
+def Func_ReadCsv_OrderSku_tool(order_sku_num_list,order_sku_number_list, order_sku_list,order_section_list, a,sku_list):
+    for f in range(len(order_sku_num_list)):
+        if (order_sku_num_list[f] is not None):
+            if (sku_list[order_sku_num_list[f]].sku_location_list[0].name == a):
+                for i in range(int(order_sku_number_list[f])):
+                    sku_add_time = int(sku_list[order_sku_num_list[f]].sku_time)
+                    for add in range(sku_add_time):
+                        order_sku_list.append(sku_list[order_sku_num_list[f]])
+                        order_section_list.append(sku_list[order_sku_num_list[f]].sku_location_list[0])
+                order_sku_num_list[f] = None
 
-def Func_ReadCsv_OrderSku_improve(i, num_col,data,sku_list):
+def Func_ReadCsv_OrderSku_improve(i, num_col,data,sku_list,num_section):
     order_sku_num_list = []  # sku的全部所在分区（数字）
+    order_sku_number_list=[]  #各sku的个数，0，1甚至是2
     order_sku_list = []  # sku的全部所在分区（实例）
+    order_section_list = []  # sku的全部所在分区（实例）
     temp = []
 
     # 读取所有数据，统计为1的列目标是在该分区
@@ -224,13 +217,13 @@ def Func_ReadCsv_OrderSku_improve(i, num_col,data,sku_list):
         temp.append(data[i + 1, z + 1])
         if ((temp[z]) != 0):
             order_sku_num_list.append(z)
+            order_sku_number_list.append(temp[z])
     # 将分区信息记录在sku对应分区的列表中
 
-    for i in range(0, 6):
-        exec("Func_ReadCsv_OrderSku_tool(order_sku_num_list, order_sku_list, 'section_{}',sku_list)".format(i))
+    for i in range(num_section):
+        exec("Func_ReadCsv_OrderSku_tool(order_sku_num_list,order_sku_number_list, order_sku_list,order_section_list, 'section_{}',sku_list)".format(i))
 
-    # print("order_%d" % i, "包含的sku为：%s" % sku_location_list[f].name)
-    return order_sku_list
+    return order_sku_list,order_section_list
 
 # 将csv中的数据按行读取为1的值并记录，如读取sku所在section信息，读取order中所含sku信息
 def Func_ReadCsv_SkuSection(i, num_section,data,section_list):
@@ -250,6 +243,14 @@ def Func_ReadCsv_SkuSection(i, num_section,data,section_list):
         # print("sku_%d" % i, "所在的分区为：%s" % sku_location_list[f].name)
     return sku_location_list
 
+#读取sku单个用时
+def Func_ReadCsv_SkuTime(path_sku_time_map,num_sku,sku_time_list):
+    data = np.genfromtxt(path_sku_time_map,
+        delimiter=",")  # 打开Excel文件
+    sku_time_map = pd.read_csv(path_sku_time_map)
+    for i in range(0, num_sku):
+        sku_time_list.append(data[1,i+1])
+    return sku_time_list
 
 #随机颜色
 def randomcolor():

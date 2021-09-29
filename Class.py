@@ -3,6 +3,14 @@
 作者：l_jiujiu
 日期：2021.08.20
 """
+import pandas as pd
+import time as tm
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+
+from prettytable import PrettyTable
+from prettytable import from_csv
 
 
 class Sku:
@@ -22,6 +30,40 @@ class Section:
         self.section_sku_list = section_config['section_sku_list']  # 处理sku信息，可以有多个order1
         self.section_sku_name_list = section_config['section_sku_name_list']  # 处理sku信息的名称(不是实例)，可以有多个order1
 
+    def add_to_section_OrderSku_list(self,order_now):
+        self.section_order_list.append(order_now)
+        for i in range(len(order_now.order_sku_list)):
+            self.section_sku_list.append(order_now)
+            self.section_sku_name_list.append(order_now.name)
+            try:
+                if(order_now.order_sku_list[i + 1].sku_location_list[0].name ==
+                    order_now.order_sku_list[i].sku_location_list[0].name):
+                    continue
+                else:
+                    break
+            except BaseException:
+                break
+
+    # 在分区sku等待队列中删除派发sku的信息
+    def del_section_Sku_list(self):
+        self.section_sku_list.pop(0)
+        self.section_sku_name_list.pop(0)
+
+    def del_section_Order_list(self):
+        self.section_order_list.pop(0)
+
+
+    def display_section_OrderSku_list(self):
+        print('当前section的order排列：display_section_order_list:')
+        for section_order in self.section_order_list:
+            print(section_order.name)
+        print('当前section的考虑sku的order排列：display_section_sku_list:')
+        for section_sku in self.section_sku_list:
+            print(section_sku.name)
+
+
+
+
 
 class Order:
     def __init__(self, order_config):
@@ -37,16 +79,66 @@ class Order:
         # 时间
         self.time = order_config['time']
 
+        self.path_order_sku_map=order_config['path_order_sku_map']
+
+    # 更新订单时间
+    def refresh_order_time(self,section_now):
+        # 1。1更新订单时间信息
+        self.current_section.append(section_now.name)
+        self.time['section_processing_time_list'] = 1
+        self.time['waiting_time'] = len(section_now.section_sku_list) - 1
+
+    def refresh_order_time_2(self, section_now):
+        self.current_section.append(section_now.name)
+        # 1.2更新order的时间
+        # 在该section的实际操作时间（仅本订单）
+        key = 1
+        for i in range(1, len(self.order_section_list)):
+            if (self.order_section_list[i]!= self.order_section_list[0]):
+                break
+            else:
+                key = key + 1
+        self.time['section_processing_time_list'] = key
+        # 在该section的等待时间
+        self.time['waiting_time'] = len(section_now.section_sku_list) - 1
+        # print("【%s" % order_now.name, "移动】waiting time=%s" % order_now.time['waiting_time'])
+
+
+
+
+    def del_order_SectionSku_list(self):
+        self.order_section_list.pop(0)
+        self.order_sku_list.pop(0)
+
     # 根据SKU制作分区访问序列
     def make_section_list(self):
         # print("%s经停分区："%self.name)
         self.order_section_list = []
         order_section_list_name = []  # 初始化订单分区经停顺序
+
+
         for i in range(len(self.order_sku_list)):
-            self.order_section_list.append(self.order_sku_list[i].sku_location_list[0])
+            sku_add_time = int(self.order_sku_list[i].sku_time)
+            for add in range(sku_add_time):
+                self.order_section_list.append(self.order_sku_list[i].sku_location_list[0])
             # 【可视化：不同分区等待的订单数，注意：如果是不同sku在相同分区，则等待订单数需要+1】
-            order_section_list_name.append(self.order_sku_list[i].sku_location_list[0].name)
+                order_section_list_name.append(self.order_sku_list[i].sku_location_list[0].name)
             # print('%s'%order_section_list_name[i],"中正在等待的订单数%d"%self.order_sku_list[i].sku_location.section_order_num)
+
+    # def make_order_sectionsku_list(self):
+    #     data = np.genfromtxt(self.path_order_sku_map, delimiter=",")  # 打开Excel文件
+    #
+    #     # #表格展示
+    #     # table_OrderSku = PrettyTable()
+    #     # fp = open(self.path_order_sku_map, "r")
+    #     # table_OrderSku = from_csv(fp)
+    #     # print(table_OrderSku)
+    #     # fp.close()
+    #
+
+
+
+
 
     def make_section_list_simple(self):
         self.order_section_list_simple = []
@@ -66,19 +158,21 @@ class Order:
     def cal_time_cost(self):
         self.order_time_cost = 0
         i = 0
-        for i in range(3):
+        for i in range(4):
             # 输入权重（1，0.5，0.3）
             weight = 1
             if (i == 1):
                 weight = 0.5
             if (i == 2):
                 weight = 0.3
+            if (i == 3):
+                weight = 0.2
 
             try:
                 # cost为权重*分区等待数的和
-                if(self.order_section_list_simple[i] is not None):
-                    waiting = len(self.order_section_list_simple[i].section_order_list)
-                    # waiting = self.order_section_list_simple[i].section_order_num
+                if(self.order_section_list[i] is not None):
+                    waiting = len(self.order_section_list[i].section_sku_list)
+                    # waiting = len(self.order_section_list[i].section_order_list)
                     self.order_time_cost = self.order_time_cost + waiting * weight
                     waiting = 0
             except BaseException:
