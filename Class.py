@@ -32,7 +32,7 @@ class Section:
         self.section_sku_list = section_config['section_sku_list']
         # 处理sku信息的名称(不是实例)，可以有多个order1
         self.section_sku_name_list = section_config['section_sku_name_list']
-
+        self.section_waiting_order=section_config['section_waiting_order']
     def add_to_section_OrderSku_list(self, order_now):
         self.section_order_list.append(order_now)
         for i in range(len(order_now.order_sku_list)):
@@ -163,25 +163,23 @@ class Order:
             # 输入权重（1，0.5，0.3）
             weight = 1
             if (i == 1):
-                weight = 0.5
+                weight = 0
             if (i == 2):
-                weight = 0.3
+                weight = 0
             if (i == 3):
-                weight = 0.2
+                weight = 0
 
             try:
                 # cost为权重*分区等待数的和
                 if(self.order_section_list[i] is not None):
                     waiting = len(self.order_section_list[i].section_sku_list)
+                    # print(waiting)
                     # waiting = len(self.order_section_list[i].section_order_list)
                     self.order_time_cost = self.order_time_cost + waiting * weight
                     waiting = 0
             except BaseException:
                 break
         # print("%s" % self.name, "的cost为：%.2f" % self.order_time_cost)
-
-    def cal_time_cost_origin(self, i):
-        self.order_time_cost = i
 
 # 用于将排序后的cost和订单order对应
 

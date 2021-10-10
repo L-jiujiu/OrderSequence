@@ -88,11 +88,6 @@ def Func_order_notstart(
         cost, order_now = Func_Cost_sequence(
             order_notstart, CostList)  # order_now是选出来将要进行派发的单子
 
-    if(keyy == 'no_algorithm'):
-        # 无排序算法
-        cost, order_now = Func_Cost_sequence_origin(
-            order_notstart, CostList)  # order_now是选出来将要进行派发的单子
-
     section_now = order_now.order_section_list[0]  # section_now是将要进行派发的section
     sku_now = order_now.order_sku_list[0]  # sku_now是将要进行派发的sku
 
@@ -106,6 +101,7 @@ def Func_order_notstart(
         ",第一站为：%s" %
         section_now.name,
     )
+
     # 【展示】
     # for i in range(len(order_now.order_sku_list)):
     #     print(order_now.order_sku_list[i].name)
@@ -144,9 +140,106 @@ def Func_order_notstart(
     order_notstart.pop(cost[0].orderfororder)
     cost.pop(0)
 
+def Func_order_notstart_no_algorithm(
+        t,
+        section_list,
+        order_notstart,
+        order_ing,
+        keyy,
+        order_start):
+    # if order_notstart
+    # 1 order_notstart：对未发出的order进行cost计算，决策应该先派出哪单
+    # 1.1对派发order计算cost并进行排序
+    print('*********order发出*********')
+    if(keyy == 'no_algorithm'):
+        # 无排序算法
+        order_now=order_notstart[0]
+
+    elif(keyy=='Fa_algorithm'):
+        notice=0
+        # 发网现有代码
+        order_can=[]
+        orderfororder=[]
+        for section in section_list:
+            # print(section.name)
+            if(len(section.section_order_list)==0):
+                for order in order_notstart:
+                    if(len(order.order_section_list)!=0):
+                        if(order.order_section_list[0].name==section.name):
+                            order_can.append(order)
+                            break
+                        else:
+                            continue
+            else:
+                continue
+
+        if(len(order_can)!=0):
+            for order in order_can:
+                print(order.name)
+            order_now=order_can[0]
+        else:
+            # order_now=order_notstart[0]
+            notice=1
+            print('0000000')
+            cost, order_now = Func_Cost_sequence(
+                order_notstart, CostList)  # order_now是选出来将要进行派发的单子
+
+
+    section_now = order_now.order_section_list[0]  # section_now是将要进行派发的section
+    sku_now = order_now.order_sku_list[0]  # sku_now是将要进行派发的sku
+
+    print(
+        "当前派发的订单为：%s" %
+        order_now.name,
+        ",sku为：%s" %
+        sku_now.name,
+        ",第一站为：%s" %
+        section_now.name,
+    )
+
+    order_now.current_section.append(section_now.name)
+    # 1.3更新order时间
+    # 进入section时间：对于第一次派发=当前时间
+    order_now.time['enter_section'] = t  # 进入分区的时间是t，但不一定进入之后立即加工
+    # 在该section的实际操作时间（仅本订单）
+    key = 1
+    for i in range(1, len(order_now.order_section_list)):
+        if (order_now.order_section_list[i] !=
+                order_now.order_section_list[0]):
+            break
+        else:
+            key = key + 1
+    order_now.time['section_processing_time_list'] = key
+    # 在该section的等待时间
+    order_now.time['waiting_time'] = len(section_now.section_sku_list)
+    # print("waiting time=%s" % order_now.time['waiting_time'])
+
+    # 1.4在分区等待队列中增加派发订单的信息(如order_1在section_1有3个sku要做，那就加3个order_1)
+    section_list[order_now.order_section_list[0].num].add_to_section_OrderSku_list(
+        order_now)
+
+    # 1.5显示每个分区的订单\sku排序
+    # print('【新order派发后】')
+    # section_list[order_now.order_section_list[0].num].display_section_OrderSku_list()
+
+    # 1.6更新order信息,由order_notstart到正在进行order_ing,在订单排队、成本队列中踢出
+    order_start.append(order_now)  # 表示订单的派发顺序
+    order_ing.append(order_now)
+
+    if (keyy == 'no_algorithm'):
+        order_notstart.pop(0)
+
+    elif (keyy == 'Fa_algorithm'):
+        if(notice==0):
+            for i in range(len(order_notstart)):
+                if (order_notstart[i].name==order_now.name):
+                    order_notstart.pop(i)
+                    break
+        elif(notice==1):
+            order_notstart.pop(cost[0].orderfororder)
+            notice=0
+
 # 展示
-
-
 def Func_display_section_sku_list_all(section_list):
     print("所有section订单sku信息：")
     table = PrettyTable(['section', '0', '1', '2', '3', '4', '5'])

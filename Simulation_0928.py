@@ -15,7 +15,7 @@ from prettytable import PrettyTable
 from prettytable import from_csv
 
 from Class import Sku, Section, Order, CostList
-from Utilities import randomcolor, Func_Cost_sequence, Func_order_notstart,\
+from Utilities import randomcolor, Func_Cost_sequence, Func_order_notstart,Func_order_notstart_no_algorithm,\
     Func_display_section_sku_list_all, Func_display_section_order_list_all,\
     Func_display_section_sku_list, Func_display_section_order_list,\
     Func_display_order_section_list, Func_display_order_sku_list, Func_display_order,\
@@ -59,6 +59,13 @@ class Simulation:
         self.y_4 = []
         self.y_5 = []
 
+        self.y_0_before=[]
+        self.y_1_before = []
+        self.y_2_before = []
+        self.y_3_before = []
+        self.y_4_before = []
+        self.y_5_before = []
+
         self.fig = plt.figure()
         # self.sku_processing_time = get_with_default(simulation_config, 'sku_processing_time', 1)
         # self.sku_in_section_info = None
@@ -76,7 +83,8 @@ class Simulation:
                 'section_order_num': 0,  # 等待订单的数量，初始为0
                 'section_order_list': [],  # 处理订单的列表，不重复
                 'section_sku_list': [],  # 处理sku的信息，可以有多个order1
-                'section_sku_name_list': []  # 处理sku信息的名称（不是实例）
+                'section_sku_name_list': [],  # 处理sku信息的名称（不是实例）
+                'section_waiting_order':[] #section中总共需要处理的ordersku的数量
             }
             self.section_list.append(Section(section_input))
         print('所有section个数为：%d' % self.num_section)
@@ -175,6 +183,7 @@ class Simulation:
 
     def plot_results(self, mode, y_lim):
         # 绘制图像
+
         for i in range(len(self.section_list)):
             exec("ax = self.fig.add_subplot(61{})".format(i + 1))
             exec("plt.title(r'$section{}$', fontsize=10)".format(i))
@@ -183,6 +192,27 @@ class Simulation:
             # plt.title(r'$section{}$', fontsize=10)
             exec(
                 "ax.plot(self.x_t, self.y_{}, color=randomcolor(), linewidth=2)".format(i))
+
+        # ax = self.fig.add_subplot(111)
+        # plt.ylim((0, 10))
+
+        # ax.plot(self.x_t, self.y_0, color=randomcolor(), linewidth=2)
+
+        plt.show()
+
+    def plot_results_before(self, mode, y_lim):
+        # 绘制图像
+        for i in range(len(self.section_list)):
+            exec("ax = self.fig.add_subplot(61{})".format(i + 1))
+            exec("plt.title(r'$section{}$', fontsize=10)".format(i))
+            if(mode == 1):
+                plt.ylim((0, y_lim))
+            # plt.title(r'$section{}$', fontsize=10)
+
+            # exec(
+            #     "ax.plot(self.x_t, self.y_{}_before, color=randomcolor(), linewidth=2)".format(i))
+        ax.plot(self.x_t, self.y_1_before, color=randomcolor(), linewidth=2)
+
         plt.show()
 
     def func_order_move(self, order_move):
@@ -191,7 +221,73 @@ class Simulation:
             section_list[order_move[i].order_section_list[0].num].add_to_section_OrderSku_list(
                 order_move[i])  # 1.6在下一个分区新增订单sku
 
-    def run(self, keyy):
+    def func_basic_inf(self):
+        num_section_sku=[]
+        num_section_order=[]
+
+        # 统计section中安排存放了多少个sku
+        print('统计section中安排存放了多少个sku：')
+        for section in self.section_list:
+            section_sku_num = 0
+            for sku in self.sku_list:
+                if (len(sku.sku_location_list)!=0):
+                    if (sku.sku_location_list[0].name ==section.name):
+                        section_sku_num=section_sku_num+1
+            num_section_sku.append(section_sku_num)
+            # print("%s"%section.name,":%d"%section_sku_num)
+
+        table_sku = PrettyTable(['section', '0', '1', '2', '3', '4', '5'])
+        row_skuu = ['sku个数', '', '', '', '', '', '']
+        for j in range(0, 6):
+            row_skuu[j + 1] = num_section_sku[j]
+        table_sku.add_row(row_skuu)
+        print(table_sku)
+
+        # section中安排了多少个order作为todo
+        print('统计section中安排了多少个order作为todo：')
+        for section in self.section_list:
+            section_order_num = 0
+            for order in self.order_notstart:
+                for order_section in order.order_section_list:
+                    if (order_section.name==section.name):
+                        section_order_num=section_order_num+1
+            num_section_order.append(section_order_num)
+            # print('%s'%section.name,":%d"%section_order_num)
+
+        table_order = PrettyTable(['section', '0', '1', '2', '3', '4', '5'])
+        row_order = ['order个数', '', '', '', '', '', '']
+        for j in range(0, 6):
+            row_order[j + 1] = num_section_order[j]
+        table_order.add_row(row_order)
+        print(table_order)
+
+        # 统计order在每个section中要停留的时间，存在section的列表中
+        for section in self.section_list:
+            for order in self.order_notstart:
+                section_waiting_order_num = 0
+                # print(order.name)
+                for order_section in order.order_section_list:
+                    if (order_section.name==section.name):
+                        # print(order_section.name)
+                        section_waiting_order_num = section_waiting_order_num+1
+                section.section_waiting_order.append(section_waiting_order_num)
+
+            print('-------------')
+            print("%s"%section.name,":最久订单号:order_%d"%section.section_waiting_order.index(max(section.section_waiting_order)),"处理时长为:%d"%max(section.section_waiting_order))
+        print('\n')
+        # print(',,,,,,,,,,,,')
+        # print(len(order_notstart[5175].order_section_list))
+        # print(section_list[0].section_waiting_order[5175])
+        # print(section_list[1].section_waiting_order[5175])
+        # print(section_list[2].section_waiting_order[5175])
+        # print(section_list[3].section_waiting_order[5175])
+        # print(section_list[4].section_waiting_order[5175])
+        # print(section_list[5].section_waiting_order[5175])
+
+        # print(order_notstart[4631].order_section_list)
+            # print(section.section_waiting_order)
+
+    def run(self, keyy,order_pace):
         for t in range(self.T):
             print(
                 "\n--------------------------\n     当前时刻为%d\n--------------------------" %
@@ -200,26 +296,45 @@ class Simulation:
             # 1）下发notstart的订单
             # 按照一定规律计算订单发出的cost，，选择cost最少的订单作为order_now
             # 把order_now的sku信息加到第一个section中的section_order_list中
+            if(t%order_pace==0):
+                try:
+                    # 考虑cost的算法
+                    if(keyy == 'with_algorithm'):
+                        Func_order_notstart(
+                            t=t,
+                            section_list=self.section_list,
+                            order_notstart=self.order_notstart,
+                            order_ing=self.order_ing,
+                            keyy='with_algorithm',
+                            order_start=self.order_start)
+                    # 不考虑cost的算法
+                    if (keyy == 'no_algorithm'):
+                        Func_order_notstart_no_algorithm(
+                            t=t,
+                            section_list=self.section_list,
+                            order_notstart=self.order_notstart,
+                            order_ing=self.order_ing,
+                            keyy='no_algorithm',
+                            order_start=self.order_start)
+                    # 发网的算法
+                    if (keyy == 'Fa_algorithm'):
+                        Func_order_notstart_no_algorithm(
+                            t=t,
+                            section_list=self.section_list,
+                            order_notstart=self.order_notstart,
+                            order_ing=self.order_ing,
+                            keyy='Fa_algorithm',
+                            order_start=self.order_start)
 
-            try:
-                if(keyy == 1):
-                    Func_order_notstart(
-                        t=t,
-                        section_list=self.section_list,
-                        order_notstart=self.order_notstart,
-                        order_ing=self.order_ing,
-                        keyy='with_algorithm',
-                        order_start=self.order_start)
-                if (keyy == 0):
-                    Func_order_notstart(
-                        t=t,
-                        section_list=self.section_list,
-                        order_notstart=self.order_notstart,
-                        order_ing=self.order_ing,
-                        keyy='no_algorithm',
-                        order_start=self.order_start)
-            except BaseException:
-                print('*********order派发结束*********\n')
+                except BaseException:
+                    print('*********order派发结束*********\n')
+
+
+            # 统计派发完成后的section中的section_sku_list，记录y轴数据
+            for i in range(len(self.section_list)):
+                exec(
+                    "self.y_{}_before.append(len(section_list[{}].section_sku_list))".format(
+                        i, i))
 
             # 【展示】
             Func_display_section_sku_list_all(self.section_list)
@@ -387,21 +502,21 @@ if __name__ == "__main__":
     order_start = []  # 表示订单派发顺序的列表
 
     simulation_config = {
-        'T': 100000,  # 仿真时长
+        'T': 100000000,  # 仿真时长
         # # 初始数据
         # 'path_sku_section_map': cwd + '/input/SkuSectionMap_0922.csv',
         # 'path_order_sku_map': cwd + '/input/OrderSkuMap_0924.csv',
         # 'path_sku_time_map': cwd + '/input/SkuTimeMap_0922.csv',
 
-        # ONum3432_SNum444
-        'path_sku_section_map': cwd + '/datas/ONum3432_SNum444/SkuSectionMap_ONum3432_SNum444_930_heuristic.csv',
-        'path_order_sku_map': cwd + '/datas/ONum3432_SNum444/OrderSKUMap_ONum3432_SNum444_930_heuristic.csv',
-        'path_sku_time_map': cwd + '//datas/ONum3432_SNum444/SkuTimeMap_SNum444_930_heuristic.csv',
+        # # ONum3432_SNum444
+        # 'path_sku_section_map': cwd + '/datas/ONum3432_SNum444/SkuSectionMap_ONum3432_SNum444_930_heuristic.csv',
+        # 'path_order_sku_map': cwd + '/datas/ONum3432_SNum444/OrderSKUMap_ONum3432_SNum444_930_heuristic.csv',
+        # 'path_sku_time_map': cwd + '//datas/ONum3432_SNum444/SkuTimeMap_SNum444_930_heuristic.csv',
 
-        # # ONum5610_SNum399
-        # 'path_sku_section_map': cwd + '/datas/ONum5610_SNum399/SkuSectionMap_ONum5610_SNum399_930_heuristic.csv',
-        # 'path_order_sku_map': cwd + '/datas/ONum5610_SNum399/OrderSKUMap_ONum5610_SNum399_930_heuristic.csv',
-        # 'path_sku_time_map': cwd + '//datas/ONum5610_SNum399/SkuTimeMap_SNum399_930_heuristic.csv',
+        # ONum5610_SNum399
+        'path_sku_section_map': cwd + '/datas/ONum5610_SNum399/SkuSectionMap_ONum5610_SNum399_930_heuristic.csv',
+        'path_order_sku_map': cwd + '/datas/ONum5610_SNum399/OrderSKUMap_ONum5610_SNum399_930_heuristic.csv',
+        'path_sku_time_map': cwd + '//datas/ONum5610_SNum399/SkuTimeMap_SNum399_930_heuristic.csv',
 
         # # ONum6544_SNum537
         # 'path_sku_section_map': cwd + '/datas/ONum6544_SNum537/SkuSectionMap_ONum6544_SNum537_930_heuristic.csv',
@@ -423,11 +538,19 @@ if __name__ == "__main__":
 
     }
     simulation_1 = Simulation(simulation_config)
-    simulation_1.run(0)
+    simulation_1.func_basic_inf()
+
+    # simulation_1.run(keyy='Fa_algorithm',order_pace=1)
+    # simulation_1.run(keyy='no_algorithm',order_pace=2)
+    simulation_1.run(keyy='with_algorithm',order_pace=2)
+
 
     end = tm.perf_counter()
     print("程序共计用时 : %s Seconds " % (end - start))
 
+
     # # 绘制图像
-    simulation_1.plot_results(mode='0', y_lim=100000)
-    # simulation_1.plot_results(mode='1',y_lim=10)
+    # simulation_1.plot_results(mode='0', y_lim=100000)
+    # simulation_1.plot_results_before(mode='0', y_lim=100000)
+
+    simulation_1.plot_results(mode='1',y_lim=10)
