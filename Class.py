@@ -82,7 +82,7 @@ class Order:
         self.time = order_config['time']
 
         self.path_order_sku_map = order_config['path_order_sku_map']
-
+        self.order_section_time_list=order_config['order_section_time_list']
     # 更新订单时间
     def refresh_order_time(self, section_now):
         # 1。1更新订单时间信息
@@ -110,20 +110,20 @@ class Order:
         self.order_sku_list.pop(0)
 
     # 根据SKU制作分区访问序列
-    def make_section_list(self):
-        # print("%s经停分区："%self.name)
-        self.order_section_list = []
-        order_section_list_name = []  # 初始化订单分区经停顺序
-
-        for i in range(len(self.order_sku_list)):
-            sku_add_time = int(self.order_sku_list[i].sku_time)
-            for add in range(sku_add_time):
-                self.order_section_list.append(
-                    self.order_sku_list[i].sku_location_list[0])
-            # 【可视化：不同分区等待的订单数，注意：如果是不同sku在相同分区，则等待订单数需要+1】
-                order_section_list_name.append(
-                    self.order_sku_list[i].sku_location_list[0].name)
-            # print('%s'%order_section_list_name[i],"中正在等待的订单数%d"%self.order_sku_list[i].sku_location.section_order_num)
+    # def make_section_list(self):
+    #     # print("%s经停分区："%self.name)
+    #     self.order_section_list = []
+    #     order_section_list_name = []  # 初始化订单分区经停顺序
+    #
+    #     for i in range(len(self.order_sku_list)):
+    #         sku_add_time = int(self.order_sku_list[i].sku_time)
+    #         for add in range(sku_add_time):
+    #             self.order_section_list.append(
+    #                 self.order_sku_list[i].sku_location_list[0])
+    #         # 【可视化：不同分区等待的订单数，注意：如果是不同sku在相同分区，则等待订单数需要+1】
+    #             order_section_list_name.append(
+    #                 self.order_sku_list[i].sku_location_list[0].name)
+    #         # print('%s'%order_section_list_name[i],"中正在等待的订单数%d"%self.order_sku_list[i].sku_location.section_order_num)
 
     # def make_order_sectionsku_list(self):
     #     data = np.genfromtxt(self.path_order_sku_map, delimiter=",")  # 打开Excel文件
@@ -136,47 +136,54 @@ class Order:
     #     # fp.close()
     #
 
-    def make_section_list_simple(self):
-        self.order_section_list_simple = []
-        order_section_list_simple_name = []
-        for i in range(len(self.order_sku_list)):
-            if(i == 0):
-                self.order_section_list_simple.append(
-                    self.order_sku_list[i].sku_location_list[0])  # 记录第一个sku的section信息
-                order_section_list_simple_name.append(
-                    self.order_sku_list[i].sku_location_list[0].name)
-            else:
-                if(self.order_sku_list[i].sku_location_list[0] != self.order_sku_list[i - 1].sku_location_list[0]):
-                    # 如果与前面的section不同，则做新的纪录，不记录重复的section信息
-                    self.order_section_list_simple.append(
-                        self.order_sku_list[i].sku_location_list[0])
-                    order_section_list_simple_name.append(
-                        self.order_sku_list[i].sku_location_list[0].name)
-        # print("订单经停的section有：%s"%order_section_list_simple_name)
+    # def make_section_list_simple(self):
+    #     self.order_section_list_simple = []
+    #     order_section_list_simple_name = []
+    #     for i in range(len(self.order_sku_list)):
+    #         if(i == 0):
+    #             self.order_section_list_simple.append(
+    #                 self.order_sku_list[i].sku_location_list[0])  # 记录第一个sku的section信息
+    #             order_section_list_simple_name.append(
+    #                 self.order_sku_list[i].sku_location_list[0].name)
+    #         else:
+    #             if(self.order_sku_list[i].sku_location_list[0] != self.order_sku_list[i - 1].sku_location_list[0]):
+    #                 # 如果与前面的section不同，则做新的纪录，不记录重复的section信息
+    #                 self.order_section_list_simple.append(
+    #                     self.order_sku_list[i].sku_location_list[0])
+    #                 order_section_list_simple_name.append(
+    #                     self.order_sku_list[i].sku_location_list[0].name)
+    #     # print("订单经停的section有：%s"%order_section_list_simple_name)
 
     # 计算由权重和等待order计算cost进行派件排序
 
-    def cal_time_cost(self):
+    def cal_time_cost(self,section_list):
         self.order_time_cost = 0
-        i = 0
+        # 选取需要经过的section，以i为索引编辑列表
+        order_section_time_list_notnull=[]
+        for i in range(6):
+            if (self.order_section_time_list[i]!=0):
+                order_section_time_list_notnull.append(i)
+        # print(order_section_time_list_notnull)
         for i in range(4):
-            # 输入权重（1，0.5，0.3）
+            # 输入权重（1，0.8，0.5，0.3）
             weight = 1
             if (i == 1):
-                weight = 0
+                weight = 0.8
             if (i == 2):
-                weight = 0
+                weight = 0.5
             if (i == 3):
-                weight = 0
+                weight = 0.3
 
             try:
-                # cost为权重*分区等待数的和
-                if(self.order_section_list[i] is not None):
-                    waiting = len(self.order_section_list[i].section_sku_list)
-                    # print(waiting)
-                    # waiting = len(self.order_section_list[i].section_order_list)
-                    self.order_time_cost = self.order_time_cost + waiting * weight
-                    waiting = 0
+                # cost为权重*(在第一个有sku的section需要处理的时间+该section的等待订单数)
+                location = order_section_time_list_notnull[i]
+                thing = self.order_section_time_list[location]
+                waiting = len(section_list[location].section_sku_list)
+                self.order_time_cost = self.order_time_cost + (waiting + thing) * weight
+                # self.order_time_cost = self.order_time_cost + (waiting * thing) * weight
+
+                # print('section_%d' % order_section_time_list_notnull[i], '的等待订单数%d' % waiting,
+                #       '& order的处理时间=%d' % thing)
             except BaseException:
                 break
         # print("%s" % self.name, "的cost为：%.2f" % self.order_time_cost)
