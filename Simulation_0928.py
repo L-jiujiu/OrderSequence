@@ -198,6 +198,10 @@ class Simulation:
             exec(
                 "ax.plot(self.x_t, self.y_{}, color=randomcolor(), linewidth=2)".format(i))
 
+        # 显示section_waiting_list最长的时刻和队列长度
+        for i in range(6):
+            exec('print("Max Section_{}(t=%d"%self.y_{}.index(max(self.y_{})),")=%d" %max(self.y_{}))'.format(i,i,i,i))
+
         # ax = self.fig.add_subplot(111)
         # plt.ylim((0, 10))
 
@@ -533,9 +537,9 @@ if __name__ == "__main__":
     simulation_config = {
         'T': 2000000000,  # 仿真时长
         # 初始数据
-        'path_sku_section_map': cwd + '/input/SkuSectionMap_0922.csv',
-        'path_order_sku_map': cwd + '/input/OrderSkuMap_0924.csv',
-        'path_sku_time_map': cwd + '/input/SkuTimeMap_0922.csv',
+        # 'path_sku_section_map': cwd + '/input/SkuSectionMap_0922.csv',
+        # 'path_order_sku_map': cwd + '/input/OrderSkuMap_0924.csv',
+        # 'path_sku_time_map': cwd + '/input/SkuTimeMap_0922.csv',
 
         # ONum3432_SNum444
         # 'path_sku_section_map': cwd + '/datas/ONum3432_SNum444/SkuSectionMap_ONum3432_SNum444_930_heuristic.csv',
@@ -553,9 +557,9 @@ if __name__ == "__main__":
         # 'path_sku_time_map': cwd + '//datas/ONum5610_SNum399/SkuTimeMap_SNum399_930_heuristic.csv',
 
         # # ONum6544_SNum537
-        # 'path_sku_section_map': cwd + '/datas/ONum6544_SNum537/SkuSectionMap_ONum6544_SNum537_930_heuristic.csv',
-        # 'path_order_sku_map': cwd + '/datas/ONum6544_SNum537/OrderSKUMap_ONum6544_SNum537_930_heuristic.csv',
-        # 'path_sku_time_map': cwd + '//datas/ONum6544_SNum537/SkuTimeMap_SNum537_930_heuristic.csv',
+        'path_sku_section_map': cwd + '/datas/ONum6544_SNum537/SkuSectionMap_ONum6544_SNum537_930_heuristic.csv',
+        'path_order_sku_map': cwd + '/datas/ONum6544_SNum537/OrderSKUMap_ONum6544_SNum537_930_heuristic.csv',
+        'path_sku_time_map': cwd + '//datas/ONum6544_SNum537/SkuTimeMap_SNum537_930_heuristic.csv',
 
         'num_section': num_section,
 
@@ -572,8 +576,8 @@ if __name__ == "__main__":
     simulation_1 = Simulation(simulation_config)
     simulation_1.func_basic_inf()
 
-    # simulation_1.run(keyy='Fa_algorithm',order_pace=2 )
-    simulation_1.run(keyy='Fa_original_algorithm',order_pace=1)
+    simulation_1.run(keyy='Fa_algorithm',order_pace=2)
+    # simulation_1.run(keyy='Fa_original_algorithm',order_pace=1)
     # simulation_1.run(keyy='no_algorithm',order_pace=2)
     # simulation_1.run(keyy='with_algorithm',order_pace=1)
 
