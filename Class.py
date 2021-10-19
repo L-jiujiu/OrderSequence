@@ -26,8 +26,10 @@ class Section:
         self.name = section_config['name']  # 分区名称
         self.num = section_config['num']      # 分区序号
         self.section_order_num = section_config['section_order_num']  # 等待订单数量
-        # 处理订单列表,只有1个order1,对于同一个订单在此地有多个货物要拣选的只录入一条
+        # 只有1个order1,对于同一个订单在此地有多个货物要拣选的只录入一条
         self.section_order_list = section_config['section_order_list']
+        # 只有1个order1,对于同一个订单在此地有多个货物要拣选的只录入一条
+        self.section_order_list_simple = section_config['section_order_list_simple']
         # 处理sku信息，可以有多个order1
         self.section_sku_list = section_config['section_sku_list']
         # 处理sku信息的名称(不是实例)，可以有多个order1
@@ -38,6 +40,7 @@ class Section:
         for i in range(len(order_now.order_sku_list)):
             self.section_sku_list.append(order_now)
             self.section_sku_name_list.append(order_now.name)
+
             try:
                 if(order_now.order_sku_list[i + 1].sku_location_list[0].name ==
                         order_now.order_sku_list[i].sku_location_list[0].name):

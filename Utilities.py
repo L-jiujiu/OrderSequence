@@ -56,20 +56,141 @@ def Func_order_notstart(
     # 1.1对派发order计算cost并进行排序
     print('*********order发出*********')
 
-    if(keyy == 'with_algorithm'):
-        # 有排序算法
-        print("待派发的orders各自的cost:")
-        cost, order_now = Func_Cost_sequence(
-            order_notstart, CostList,section_list)  # order_now是选出来将要进行派发的单子
+    # if(keyy == 'with_algorithm'):
+    #     # 有排序算法
+    #     print("待派发的orders各自的cost:")
+    #     cost, order_now = Func_Cost_sequence(
+    #         order_notstart, CostList,section_list)  # order_now是选出来将要进行派发的单子
 
-    elif (keyy == 'no_algorithm'):
+    if (keyy == 'no_algorithm'):
         # 无排序算法
         order_now = order_notstart[0]
 
+    # 发网原始代码
+    elif (keyy == 'Fa_original_algorithm'):
+        order_can = []
+        order_cancan = []
+        notice_original=0
+
+        # 筛选只有一个section需要处理的订单存入order_cancan
+        for i in range(len(order_notstart)):
+            time_notzero=0
+            for t in order_notstart[i].order_section_time_list:
+                if (t!=0):
+                    time_notzero=time_notzero+1
+            if(time_notzero==1):
+                order_cancan.append(order_notstart[i])
+        print('有且只有一个单位需要处理的订单数量%d' % len(order_cancan))
+
+        # 从只有一个section需要处理的订单中，筛选第一个单位为空的订单存入order_can
+        for section in section_list:
+            # print(section.name)
+            if (len(section.section_order_list) == 0):
+                for order in order_cancan:
+                    if (len(order.order_section_list) != 0):
+                        if (order.order_section_list[0].name == section.name):
+                            order_can.append(order)
+                        else:
+                            continue
+            else:
+                continue
+        # count=0
+        # for order in order_can:
+        #     # print("%d"%count,":%s"%order.name)
+        #     count=count+1
+        print("满足派出条件的订单个数：%d"%len(order_can))
+
+        if (len(order_can) > 0):
+            order_now = order_can[0]
+            notice_original = 1
+            print('zzzzzzzzz:有优先订单派出')
+        else:
+            if(len(order_notstart[0].order_section_list[0].section_order_list)>=6):
+                print('订单堵塞，本轮无订单被派发')
+                return 0
+            else:
+                order_now = order_notstart[0]
+                print('yyyyyyyyy:无优先订单派出，按订单排序派出')
+
+    # # 改进代码1：含订单量为0的section
+    # elif (keyy == 'Fa_algorithm'):
+    #     # 发网与cost结合算法
+    #     order_can = []  # 存储可以派发的单子序列-可以派发指：等待队列最少的section
+    #     for section in section_list:
+    #         # print(section.name)
+    #         if (len(section.section_order_list) == 0):
+    #             for order in order_notstart:
+    #                 if (len(order.order_section_list) != 0):
+    #                     if (order.order_section_list[0].name == section.name):
+    #                         order_can.append(order)
+    #                     else:
+    #                         continue
+    #         else:
+    #             continue
+    #     print('第一个单位为空的订单数量%d' % len(order_can))
+    #
+    #     if (len(order_can) > 0):
+    #         cost, order_now = Func_Cost_sequence(order_can, CostList, section_list)
+    #         print('zzzzzzzzz:有优先订单派出')
+    #     else:
+    #         cost, order_now = Func_Cost_sequence(order_notstart, CostList, section_list)
+    #         print('yyyyyyyyy:无优先订单派出，按订单排序派出')
+
+    # 改进代码2：含订单量最少的section
     elif (keyy == 'Fa_algorithm'):
+        # 发网与cost结合算法
+        order_can = []  # 存储可以派发的单子序列-可以派发指：等待队列最少的section
+        section_list_can=[]  # 存储等待订单数最少的section
+
+        section_waiting_num=[]
+
+        for section in section_list:
+            section_waiting_num.append(len(section.section_order_list))
+
+        section_list_can_num=min_index(section_waiting_num) # 存储等待订单数最少的section
+        for num in section_list_can_num:
+            section_list_can.append(section_list[num])
+
+        # for section in section_list_can:
+        #     print(section.name)
+
+        for section in section_list_can:
+            # print(section.name)
+            if(len(section.section_order_list)>=6):
+                print('订单堵塞，本轮无订单被派发')
+
+                return 0
+            else:
+                for order in order_notstart:
+                    if (len(order.order_section_list) != 0):
+                        if (order.order_section_list[0].name == section.name):
+                            order_can.append(order)
+                        else:
+                            continue
+        # print('第一个单位为空的订单数量%d' % len(order_can))
+
+        if (len(order_can) > 0):
+            cost, order_now = Func_Cost_sequence(order_can, CostList, section_list)
+            print('zzzzzzzzz:有优先订单派出')
+        else:
+            order_other=[]
+            for order in order_notstart:
+                if (len(order.order_section_list[0].section_order_list) < 6):
+                    order_other.append(order)
+                else:
+                    continue
+            if(len(order_other)==0):
+                print('订单堵塞，本轮无订单被派发')
+                return 0
+            else:
+                cost, order_now = Func_Cost_sequence(order_other, CostList, section_list)
+                print('yyyyyyyyy:无优先订单派出，按订单排序派出')
+
+    # 改进代码3：变节奏派发订单
+    elif (keyy == 'Fa_pace_change'):
         notice = 0
         # 发网与cost结合算法
-        order_can = [] #存储可以派发的单子序列-可以派发指：等待队列最少的section
+        order_can = []  # 存储可以派发的单子序列-可以派发指：等待队列最少的section
         for section in section_list:
             # print(section.name)
             if (len(section.section_order_list) == 0):
@@ -82,37 +203,12 @@ def Func_order_notstart(
             else:
                 continue
 
+        print('第一个单位为空的订单数量%d' % len(order_can))
         cost, order_now = Func_Cost_sequence(order_can, CostList, section_list)
-        # print('order_can:')
-        # if (len(order_can) != 0):
-        #     # for order in order_can:
-        #         # print(order.name)
-        #     cost, order_now = Func_Cost_sequence(order_can, CostList, section_list)
-        #     # order_now=order_can[0]
-        # else:
-        #     # order_now=order_notstart[0]
-        #     notice = 1
-        #     print('当前没有section为空')
-        #     cost, order_now = Func_Cost_sequence(
-        #         order_notstart, CostList,section_list)  # order_now是选出来将要进行派发的单子
-
-    elif (keyy == 'Fa_original_algorithm'):
-        order_can = []
-        orderfororder_original=[]
-        notice_original=0
-        for i in range(len(order_notstart)):
-            if (len(order_notstart[i].order_section_list) == 1):
-                order_can.append(order_notstart[i])
-                orderfororder_original.append(i)
-        print('有且只有一个单位时间需要处理的订单数量%d' % len(order_can))
-        if (len(order_can) > 0):
-            order_now = order_can[0]
-            notice_original=1
-        else:
-            order_now = order_notstart[0]
 
 
 
+    # 下面均为对order_now进行的操作
     section_now = order_now.order_section_list[0]  # section_now是将要进行派发的section
     sku_now = order_now.order_sku_list[0]  # sku_now是将要进行派发的sku
 
@@ -161,8 +257,7 @@ def Func_order_notstart(
     # print("waiting time=%s" % order_now.time['waiting_time'])
 
     # 1.4在分区等待队列中增加派发订单的信息(如order_1在section_1有3个sku要做，那就加3个order_1)
-    section_list[order_now.order_section_list[0].num].add_to_section_OrderSku_list(
-        order_now)
+    section_list[order_now.order_section_list[0].num].add_to_section_OrderSku_list(order_now)
 
     # 1.5显示每个分区的订单\sku排序
     # print('【新order派发后】')
@@ -176,21 +271,31 @@ def Func_order_notstart(
         cost.pop(0)
     elif((keyy == 'no_algorithm')):
         order_notstart.pop(0)
-    elif((keyy == 'Fa_original_algorithm')):
-        if(notice_original==0):
-            order_notstart.pop(0)
-        elif(notice_original==1):
-            order_notstart.pop(orderfororder_original[0])
-
-    elif (keyy == 'Fa_algorithm'):
-        if(notice==0):
-            for i in range(len(order_notstart)):
-                if (order_notstart[i].name==order_now.name):
-                    order_notstart.pop(i)
-                    break
-        elif(notice==1):
-            order_notstart.pop(cost[0])
-            cost.pop(0)
+    else:
+        for i in range(len(order_notstart)):
+            if (order_notstart[i].name == order_now.name):
+                order_notstart.pop(i)
+                break
+    # elif((keyy == 'Fa_original_algorithm')):
+    #     for i in range(len(order_notstart)):
+    #         if (order_notstart[i].name == order_now.name):
+    #             order_notstart.pop(i)
+    #             break
+    #     #
+    #     # if(notice_original==0):
+    #     #     order_notstart.pop(0)
+    #     # elif(notice_original==1):
+    #     #     for i in range(len(order_notstart)):
+    #     #         if (order_notstart[i].name==order_now.name):
+    #     #             order_notstart.pop(i)
+    #     #             break
+    #     #     # order_notstart.pop(orderfororder_original[0])
+    #
+    # elif ((keyy == 'Fa_algorithm')or(keyy == 'Fa_pace_change')):
+    #     for i in range(len(order_notstart)):
+    #         if (order_notstart[i].name == order_now.name):
+    #             order_notstart.pop(i)
+    #             break
 
 
 
@@ -416,6 +521,14 @@ def randomcolor():
     for i in range(6):
         color += colorArr[random.randint(0, 14)]
     return "#" + color
+
+def min_index(lst_int):
+    index = []
+    min_n = min(lst_int)
+    for i in range(len(lst_int)):
+        if lst_int[i] == min_n:
+            index.append(i)
+    return index  #返回一个列表
 
 
 def get_with_default(dictionary, key, default_value):

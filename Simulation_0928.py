@@ -80,7 +80,8 @@ class Simulation:
                 'name': 'section_{}'.format(i),  # 分区名称
                 'num': i,  # 分区序号
                 'section_order_num': 0,  # 等待订单的数量，初始为0
-                'section_order_list': [],  # 处理订单的列表，不重复
+                'section_order_list': [],  # 处理订单的列表，可重复
+                'section_order_list_simple': [],  # 处理订单的列表，不重复
                 'section_sku_list': [],  # 处理sku的信息，可以有多个order1
                 'section_sku_name_list': [],  # 处理sku信息的名称（不是实例）
                 'section_waiting_order':[] #section中总共需要处理的ordersku的数量
@@ -226,8 +227,14 @@ class Simulation:
     def func_order_move(self, order_move):
         print('order move not null')
         for i in reversed(range(int(len(order_move)))):
-            section_list[order_move[i].order_section_list[0].num].add_to_section_OrderSku_list(
-                order_move[i])  # 1.6在下一个分区新增订单sku
+            if(len(section_list[order_move[i].order_section_list[0].num].section_order_list)<6):
+                section_list[order_move[i].order_section_list[0].num].add_to_section_OrderSku_list(
+                    order_move[i])  # 1.6在下一个分区新增订单sku
+                order_move.pop(i)
+            else:
+                print("%s"%order_move[i].name,'不能移动，因为下一个section堵塞')
+                continue
+
 
     def func_basic_inf(self):
         num_section_sku=[]
@@ -296,33 +303,26 @@ class Simulation:
             # print(section.section_waiting_order)
 
     def run(self, keyy,order_pace):
+        order_move=[]
         for t in range(self.T):
             print(
                 "\n--------------------------\n     当前时刻为%d\n--------------------------" %
                 t)
             # 1）下发notstart的订单
-            # 按照一定规律计算订单发出的cost，，选择cost最少的订单作为order_now
+            # 按照一定规律计算订单发出的cost，选择cost最少的订单作为order_now
             # 把order_now的sku信息加到第一个section中的section_order_list中
-            # 发网的原始算法
-            # if (keyy == 'Fa_original_algorithm'):
-            #     Func_order_notstart(
-            #         t=t,
-            #         section_list=self.section_list,
-            #         order_notstart=self.order_notstart,
-            #         order_ing=self.order_ing,
-            #         keyy='Fa_original_algorithm',
-            #         order_start=self.order_start)
+            # 判断如果section的section_order_list_simple>=6则该步不派发order
             if(t%order_pace==0):
                 try:
                     # 考虑cost的算法
-                    if(keyy == 'with_algorithm'):
-                        Func_order_notstart(
-                            t=t,
-                            section_list=self.section_list,
-                            order_notstart=self.order_notstart,
-                            order_ing=self.order_ing,
-                            keyy='with_algorithm',
-                            order_start=self.order_start)
+                    # if(keyy == 'with_algorithm'):
+                    #     Func_order_notstart(
+                    #         t=t,
+                    #         section_list=self.section_list,
+                    #         order_notstart=self.order_notstart,
+                    #         order_ing=self.order_ing,
+                    #         keyy='with_algorithm',
+                    #         order_start=self.order_start)
                     # 不考虑cost的算法
                     if (keyy == 'no_algorithm'):
                         Func_order_notstart(
@@ -351,6 +351,15 @@ class Simulation:
                             keyy='Fa_original_algorithm',
                             order_start=self.order_start)
 
+                    if (keyy == 'Fa_pace_change'):
+                        Func_order_notstart(
+                            t=t,
+                            section_list=self.section_list,
+                            order_notstart=self.order_notstart,
+                            order_ing=self.order_ing,
+                            keyy='Fa_pace_change',
+                            order_start=self.order_start)
+
                 except BaseException:
                     print('*********order派发结束*********\n')
 
@@ -368,7 +377,7 @@ class Simulation:
             row_task = ['task', '', '', '', '', '', '']
 
             # 建立move订单队列
-            order_move = []
+            # order_move = []
 
             # 2）依次完成每个section中的任务
             # 判断：无任务 - 跳过，有任务 - 继续操作
@@ -478,7 +487,19 @@ class Simulation:
                 row_task[i + 1] = 1
                 row_task[i + 1] = len(section_now.section_sku_list)
             table_task.add_row(row_task)
+            print('各section剩余task数量')
             print(table_task)
+            print('\n')
+
+            print('各section剩余order数量')
+            table_task_2 = PrettyTable(['section', '0', '1', '2', '3', '4', '5'])
+            row_task_2 = ['order', '', '', '', '', '', '']
+            for i in range(num_section):
+                section_now = self.section_list[i]
+                row_task_2[i + 1] = 1
+                row_task_2[i + 1] = len(section_now.section_order_list)
+            table_task_2.add_row(row_task_2)
+            print(table_task_2)
             print('\n')
 
             # 【展示】
@@ -535,23 +556,23 @@ if __name__ == "__main__":
     order_start = []  # 表示订单派发顺序的列表
 
     simulation_config = {
-        'T': 2000000000,  # 仿真时长
+        'T': 1900000,  # 仿真时长
         # 初始数据
         # 'path_sku_section_map': cwd + '/input/SkuSectionMap_0922.csv',
         # 'path_order_sku_map': cwd + '/input/OrderSkuMap_0924.csv',
         # 'path_sku_time_map': cwd + '/input/SkuTimeMap_0922.csv',
 
-        # ONum3432_SNum444
+        # # ONum3432_SNum444
         # 'path_sku_section_map': cwd + '/datas/ONum3432_SNum444/SkuSectionMap_ONum3432_SNum444_930_heuristic.csv',
         # 'path_order_sku_map': cwd + '/datas/ONum3432_SNum444/OrderSKUMap_ONum3432_SNum444_930_heuristic.csv',
         # 'path_sku_time_map': cwd + '//datas/ONum3432_SNum444/SkuTimeMap_SNum444_930_heuristic.csv',
 
-        # # ONum5610_SNum399
+        # ONum5610_SNum399
         # 'path_sku_section_map': cwd + '/datas/ONum5610_SNum399/SkuSectionMap_ONum5610_SNum399_930_heuristic.csv',
         # 'path_order_sku_map': cwd + '/datas/ONum5610_SNum399/OrderSKUMap_ONum5610_SNum399_930_heuristic.csv',
         # 'path_sku_time_map': cwd + '//datas/ONum5610_SNum399/SkuTimeMap_SNum399_930_heuristic.csv',
 
-        # # ONum5610_SNum399_1
+        # ONum5610_SNum399_1
         # 'path_sku_section_map': cwd + '/datas/ONum5610_SNum399/SkuSectionMap_ONum5610_SNum399_930_heuristic.csv',
         # 'path_order_sku_map': cwd + '/datas/ONum5610_SNum399/OrderSKUMap_ONum5610_SNum399_930_heuristic_test.csv',
         # 'path_sku_time_map': cwd + '//datas/ONum5610_SNum399/SkuTimeMap_SNum399_930_heuristic.csv',
@@ -576,7 +597,9 @@ if __name__ == "__main__":
     simulation_1 = Simulation(simulation_config)
     simulation_1.func_basic_inf()
 
-    simulation_1.run(keyy='Fa_algorithm',order_pace=2)
+    simulation_1.run(keyy='Fa_algorithm',order_pace=1)
+    # simulation_1.run(keyy='Fa_pace_change',order_pace=1)
+
     # simulation_1.run(keyy='Fa_original_algorithm',order_pace=1)
     # simulation_1.run(keyy='no_algorithm',order_pace=2)
     # simulation_1.run(keyy='with_algorithm',order_pace=1)
